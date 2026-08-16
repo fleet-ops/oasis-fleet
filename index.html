@@ -132,7 +132,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
   </div>
 </div>
 <nav id="nav">
-<button data-view="dashboard" class="active">Dashboard</button><button data-view="vehicles">Vehicles</button><button data-view="drivers">Drivers</button><button data-view="services">Service History</button><button data-view="documents">Tax / Fitness / Insurance</button><button data-view="jobs">Job Cards</button><button data-view="expenses">Expenses</button><button data-view="reports">Reports</button><button data-view="backup">Backup</button>
+<button data-view="dashboard" class="active">Dashboard</button><button data-view="vehicles">Vehicles</button><button data-view="drivers">Drivers</button><button data-view="services">Service History</button><button data-view="breakdowns">Breakdown History</button><button data-view="documents">Tax / Fitness / Insurance</button><button data-view="jobs">Job Cards</button><button data-view="expenses">Expenses</button><button data-view="reports">Reports</button><button data-view="backup">Backup</button>
 </nav>
 <main>
 <section id="dashboard" class="view active">
@@ -296,10 +296,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <label>Service / Work Performed</label>
 <input id="sWork" placeholder="e.g. Oil change, filters, brakes, inspection">
 </div>
-<div style="margin-top:12px">
-<label>Notes / Parts / Cost</label>
-<input id="sNotes" placeholder="Optional notes">
-</div>
+
 <div class="actions"><button class="primary" onclick="addService()">Save Service Record</button></div>
 </div>
 
@@ -309,6 +306,49 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 </div>
 <div id="serviceTable"></div>
 </div>
+</section>
+
+<section id="breakdowns" class="view">
+<h1>Vehicle Breakdown History</h1>
+<p class="sub">Record every truck breakdown, recovery, repair and cost so you can track reliability and recurring failures.</p>
+<div class="panel">
+<h2>Add Breakdown Record</h2>
+<div class="grid3">
+<div><label>Vehicle</label>
+  <div class="vehicle-picker" id="bVehiclePicker">
+    <input id="bVehicleSearch" placeholder="Search or select vehicle..." autocomplete="off" onfocus="openVehiclePicker('bVehicle')" oninput="renderVehiclePicker('bVehicle')">
+    <input type="hidden" id="bVehicle">
+    <div class="vehicle-picker-list" id="bVehicleList"></div>
+  </div>
+</div>
+<div><label>Breakdown Date</label><input type="date" id="bDate"></div>
+<div><label>Breakdown Time</label><input type="time" id="bTime"></div>
+</div>
+<div class="grid3" style="margin-top:12px">
+<div><label>Odometer at Breakdown (km)</label><input type="number" min="0" id="bKm" placeholder="e.g. 185000"></div>
+<div><label>Breakdown Type</label><select id="bType"><option>Engine</option><option>Electrical</option><option>Brakes</option><option>Tyre / Wheel</option><option>Cooling System</option><option>Transmission / Gearbox</option><option>Fuel System</option><option>Suspension / Steering</option><option>Accident / Collision</option><option>Other</option></select></div>
+<div><label>Severity</label><select id="bSeverity"><option>Critical</option><option>Major</option><option>Minor</option></select></div>
+</div>
+<div class="grid3" style="margin-top:12px">
+<div><label>Status</label><select id="bStatus"><option>Open</option><option>Recovered</option><option>Under Repair</option><option>Completed</option><option>Vehicle Off Road</option></select></div>
+<div><label>Breakdown Location</label><input id="bLocation" placeholder="e.g. Great North Road, Lusaka"></div>
+<div><label>Driver / Reported By</label><input id="bDriver" placeholder="Driver name or person who reported it"></div>
+</div>
+<div class="grid3" style="margin-top:12px">
+<div><label>Recovery / Towing</label><select id="bRecovery"><option>Not Required</option><option>Roadside Assistance</option><option>Towed to Workshop</option><option>Recovered by Fleet Team</option><option>Other</option></select></div>
+
+<div><label>Repair Cost (K)</label><input type="number" min="0" step="0.01" id="bCost" placeholder="e.g. 3500"></div>
+</div>
+<div class="grid3" style="margin-top:12px">
+
+<div><label>Parts Used</label><input id="bParts" placeholder="e.g. alternator, belt, tyre"></div>
+</div>
+
+<div style="margin-top:12px"><label>Repair / Corrective Action</label><input id="bRepair" placeholder="What was repaired, replaced or done?"></div>
+
+<div class="actions"><button class="primary" onclick="addBreakdown()">Save Breakdown Record</button></div>
+</div>
+<div class="panel"><div class="actions no-print"><input class="search" id="breakdownSearch" placeholder="Search breakdown history..." oninput="renderBreakdowns()"></div><div id="breakdownTable"></div></div>
 </section>
 
 <section id="documents" class="view">
@@ -341,7 +381,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <div><label>Remind Me Before (days)</label><input type="number" min="0" id="dReminderDays" value="30"></div>
 <div><label>Reference / Policy No.</label><input id="dRef" placeholder="Optional"></div>
 </div>
-<div style="margin-top:12px"><label>Notes</label><input id="dNotes" placeholder="Optional notes"></div>
+
 <div class="actions"><button class="primary" onclick="addDocument()">Save Record</button></div>
 </div>
 
@@ -383,7 +423,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <div class="grid3" style="margin-top:12px">
 <div><label>Reported By / Driver</label><input id="jDriver"></div>
 <div><label>Odometer (km)</label><input type="number" id="jOdo"></div>
-<div><label>Status</label><select id="jStatus"><option>Open</option><option>In Progress</option><option>Completed</option><option value="ZABS Certificate">ZABS Certificate</option><option value="Electrical Certificate">Electrical Certificate</option></select></div>
+<div><label>Status</label><select id="jStatus"><option>Open</option><option>In Progress</option><option>Completed</option></select></div>
 </div>
 <div style="margin-top:12px"><label>Problem / Complaint</label><textarea id="jProblem"></textarea></div>
 <div class="grid3" style="margin-top:12px">
@@ -432,6 +472,8 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
       <select id="rReportType" onchange="syncReportControls();renderReport()">
         <option value="service-one">Service History — Selected Vehicle</option>
         <option value="service-all">Service History — All Vehicles</option>
+        <option value="breakdown-one">Breakdown History — Selected Vehicle</option>
+        <option value="breakdown-all">Breakdown History — All Vehicles</option>
         <option value="job-one">Job Cards — Selected Vehicle</option>
         <option value="job-all">Job Cards — All Vehicles</option>
         <option value="expense-one">Expenses — Selected Vehicle</option>
@@ -470,7 +512,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 
 <script>
 const KEY='oasisOilFleet_v1';
-let db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],documents:[]};
+let db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[]};
 let cloudClient=null,cloudChannel=null,cloudSaveTimer=null,cloudBusy=false,cloudRetryTimer=null,cloudReady=false;
 const CLOUD_URL_KEY='https://vkefsqhzrldtirlohthv.supabase.co';
 
@@ -549,7 +591,7 @@ async function pullCloud(){
         {onConflict:'id'}
       );
     }else{
-      db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],documents:[]};
+      db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[]};
       localStorage.setItem(KEY,JSON.stringify(db));
       await cloudClient.from('fleet_data').upsert(
         {id:'company',data:db,updated_at:new Date().toISOString()},
@@ -846,7 +888,7 @@ function refresh(){
  document.getElementById('mOpen').textContent=db.jobs.filter(j=>j.status!=='Completed').length;
  document.getElementById('mDone').textContent=db.jobs.filter(j=>j.status==='Completed').length;
  document.getElementById('mExpense').textContent=money(db.expenses.reduce((a,e)=>a+Number(e.amount||0),0));
- populateSelects();renderVehicles();renderDrivers();renderTrailers();renderServices();renderDocuments();renderJobs();renderExpenses();renderReport();renderRecent();renderReminders();refreshNotificationCenter();
+ populateSelects();renderVehicles();renderDrivers();renderTrailers();renderServices();renderBreakdowns();renderDocuments();renderJobs();renderExpenses();renderReport();renderRecent();renderReminders();refreshNotificationCenter();
 }
 function openVehiclePicker(id){
  document.getElementById(id+'Picker').classList.add('open');
@@ -869,7 +911,7 @@ function renderVehiclePicker(id){
    : '<div class="vehicle-picker-empty">No matching vehicles found.</div>';
 }
 function populateSelects(){
- ['jVehicle','eVehicle','rVehicle','sVehicle','dVehicle'].forEach(id=>{
+ ['jVehicle','eVehicle','rVehicle','sVehicle','bVehicle','dVehicle'].forEach(id=>{
    let current=document.getElementById(id).value;
    let v=db.vehicles.find(x=>x.id===current);
    if(v)document.getElementById(id+'Search').value=v.no+(v.reg?' — '+v.reg:'');
@@ -947,6 +989,23 @@ function renderServices(){
       <td><button class="danger" onclick="deleteService('${x.id}')">Delete</button></td>
     </tr>`;
   }).join('')}</table>`:'<div class="empty">No service records found.</div>';
+}
+function addBreakdown(){
+  if(!bVehicle.value)return alert('Select a vehicle.');
+  if(!bDate.value)return alert('Enter the breakdown date.');
+  if(!bType.value)return alert('Select the breakdown type.');
+  if(!bStatus.value)return alert('Select the breakdown status.');
+  db.breakdowns=(db.breakdowns||[]).map(b=>{const x={...b}; delete x.downtime; delete x.workshop; delete x.ref; delete x.description; delete x.notes; return x;});
+  db.breakdowns.push({id:crypto.randomUUID(),vehicleId:bVehicle.value,date:bDate.value,time:bTime.value,km:bKm.value?Number(bKm.value):null,type:bType.value,severity:bSeverity.value,status:bStatus.value,location:bLocation.value.trim(),driver:bDriver.value.trim(),recovery:bRecovery.value,cost:bCost.value?Number(bCost.value):0,parts:bParts.value.trim(),repair:bRepair.value.trim()});
+  ['bDate','bTime','bKm','bLocation','bDriver','bCost','bParts','bRepair'].forEach(id=>document.getElementById(id).value='');
+  save();
+}
+function deleteBreakdown(id){if(confirm('Delete this breakdown record?')){db.breakdowns=db.breakdowns.filter(x=>x.id!==id);save();}}
+function renderBreakdowns(){
+  db.breakdowns=db.breakdowns||[];
+  let q=(breakdownSearch?.value||'').toLowerCase().trim();
+  let rows=db.breakdowns.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
+  breakdownTable.innerHTML=rows.length?`<table><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Severity</th><th>Status</th><th>Location</th><th>Repair Cost</th><th>Actions</th></tr>${rows.map(x=>`<tr><td>${esc(x.date||'')}${x.time?' '+esc(x.time):''}</td><td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type||'')}</td><td>${esc(x.severity||'')}</td><td><span class="badge ${x.status==='Completed'?'done':'open'}">${esc(x.status||'')}</span></td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td><button class="danger" onclick="deleteBreakdown('${x.id}')">Delete</button></td></tr>`).join('')}</table>`:'<div class="empty">No breakdown records found.</div>';
 }
 function addDocument(){
   if(!dVehicle.value)return alert('Select a vehicle.');
@@ -1032,13 +1091,18 @@ function editVehicle(id){
   if(!v)return;
   const row=document.querySelector(`tr[data-vehicle-id="${id}"]`);
   if(!row)return;
+  const p=(db.pairs||[]).find(x=>x.horseId===id);
+  const t=p?(db.trailers||[]).find(x=>x.id===p.trailerId):null;
+  const d=(db.drivers||[]).find(x=>x.vehicleId===id);
   row.innerHTML=`
-    <td><input id="editNo_${id}" value="${esc(v.no||'')}" style="width:100%;box-sizing:border-box"></td>
-    <td><input id="editReg_${id}" value="${esc(v.reg||'')}" style="width:100%;box-sizing:border-box"></td>
-    <td><input id="editType_${id}" value="${esc(v.type||'')}" style="width:100%;box-sizing:border-box"></td>
+    <td><input class="inline-edit-input" id="editNo_${id}" value="${esc(v.no||'')}" title="${esc(v.no||'')}" style="width:100%;min-width:150px;box-sizing:border-box"></td>
+    <td><input class="inline-edit-input" id="editReg_${id}" value="${esc(v.reg||'')}" title="${esc(v.reg||'')}" style="width:100%;min-width:180px;box-sizing:border-box"></td>
+    <td><input class="inline-edit-input" id="editType_${id}" value="${esc(v.type||'')}" title="${esc(v.type||'')}" style="width:100%;min-width:150px;box-sizing:border-box"></td>
+    <td>${d?esc(d.name||'')+' — '+esc(d.phone||''):'<span style="color:#94a3b8">Unassigned</span>'}</td>
+    <td>${t?esc(t.no||'')+' — '+esc(t.reg||''):'<span style="color:#94a3b8">Not paired</span>'}</td>
     <td>${db.jobs.filter(j=>j.vehicleId===id).length}</td>
     <td>${money(db.expenses.filter(e=>e.vehicleId===id).reduce((a,e)=>a+Number(e.amount||0),0))}</td>
-    <td>
+    <td style="white-space:nowrap">
       <button class="primary" onclick="saveVehicleEdit('${id}')">Save</button>
       <button onclick="cancelVehicleEdit()">Cancel</button>
     </td>`;
@@ -1073,10 +1137,37 @@ function renderVehicles(){
       (t?esc(t.no||'')+' — '+esc(t.reg||''):'<span style="color:#94a3b8">Not paired</span>')+
       '</td><td>'+db.jobs.filter(j=>j.vehicleId===v.id).length+'</td><td>'+
       money(db.expenses.filter(e=>e.vehicleId===v.id).reduce((x,e)=>x+Number(e.amount||0),0))+
-      '</td><td><button class="primary" type="button" onclick="showTrailerPicker(\''+v.id+'\')">'+(t?'Change Pair':'Pair Trailer')+
+      '</td><td><button class="primary" type="button" onclick="openVehicleDetails(\''+v.id+'\')">View</button> <button class="primary" type="button" onclick="showTrailerPicker(\''+v.id+'\')">'+(t?'Change Pair':'Pair Trailer')+
       '</button> <button class="primary" type="button" onclick="editVehicle(\''+v.id+'\')">Edit</button> <button class="danger" type="button" onclick="deleteVehicle(\''+v.id+'\')">Delete</button></td></tr>';
   }).join(''):'<div class="empty">No vehicles yet.</div>';
 }
+function closeVehicleDetails(){const m=document.getElementById('modal');if(m)m.classList.remove('show');}
+function openVehicleDetails(id){
+ const v=(db.vehicles||[]).find(x=>x.id===id);if(!v)return;
+ const d=(db.drivers||[]).find(x=>x.vehicleId===id),pair=(db.pairs||[]).find(x=>x.horseId===id),trailer=pair?(db.trailers||[]).find(x=>x.id===pair.trailerId):null;
+ const jobs=(db.jobs||[]).filter(x=>x.vehicleId===id).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+ const services=(db.services||[]).filter(x=>x.vehicleId===id).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+ const expenses=(db.expenses||[]).filter(x=>x.vehicleId===id).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+ const docs=(db.documents||[]).filter(x=>x.vehicleId===id).sort((a,b)=>String(a.expiryDate||'').localeCompare(String(b.expiryDate||'')));
+ const breakdowns=(db.breakdowns||[]).filter(x=>x.vehicleId===id).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+ const jc=jobs.reduce((n,x)=>n+Number(x.cost||0),0),ec=expenses.reduce((n,x)=>n+Number(x.amount||0),0);
+ const modal=document.getElementById('modal'),body=document.getElementById('modalBody');if(!modal||!body)return;
+ const table=(h,rows,empty)=>rows.length?`<div style="overflow:auto"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${rows.join('')}</table></div>`:`<div class="empty">${empty}</div>`;
+ const block=(title,html)=>`<div class="panel" style="margin-top:14px"><h3 style="margin-top:0">${title}</h3>${html}</div>`;
+ body.innerHTML=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px"><div><h2 style="margin:0">${esc(v.no||v.reg||'Vehicle')}</h2><p class="sub" style="margin:4px 0 0">Vehicle Profile &amp; History</p></div><button type="button" onclick="closeVehicleDetails()">Close</button></div>
+ ${block('Vehicle Details',`<div class="grid3"><div><label>Fleet Number</label><b>${esc(v.no||'-')}</b></div><div><label>Vehicle Number</label><b>${esc(v.reg||'-')}</b></div><div><label>Vehicle Type</label><b>${esc(v.type||'-')}</b></div><div><label>Assigned Driver</label>${d?esc(d.name||'-')+' — '+esc(d.phone||'-'):'<span style="color:#94a3b8">Unassigned</span>'}</div><div><label>Paired Trailer</label>${trailer?esc(trailer.no||'-')+' — '+esc(trailer.reg||'-'):'<span style="color:#94a3b8">Not paired</span>'}</div><div><label>Records</label>${jobs.length} jobs · ${services.length} services · ${expenses.length} expenses</div></div>`)}
+ ${block('Job Card History',table(['Date','Job No.','Driver','Problem','Work Done','Status','Cost'],jobs.map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${esc(x.no||'-')}</td><td>${esc(x.driver||'-')}</td><td>${esc(x.problem||'-')}</td><td>${esc(x.work||'-')}</td><td>${esc(x.status||'-')}</td><td>${money(x.cost)}</td></tr>`),'No job cards for this vehicle.'))}
+ ${block('Service History',table(['Date','Mileage (km)','Work / Notes','Next Service (km)'],services.map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${x.km==null?'-':Number(x.km).toLocaleString()}</td><td>${esc(x.work||'-')}</td><td>${x.nextKm==null?'-':Number(x.nextKm).toLocaleString()}</td></tr>`),'No service records for this vehicle.'))}
+ ${block('Expense History',table(['Date','Category','Payee','Reference','Description','Amount'],expenses.map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${esc(x.cat||'-')}</td><td>${esc(x.payee||'-')}</td><td>${esc(x.ref||'-')}</td><td>${esc(x.desc||'-')}</td><td>${money(x.amount)}</td></tr>`),'No expenses for this vehicle.'))}
+ ${block('Tax / Fitness / Insurance',table(['Type','Issue Date','Expiry Date','Reminder Days','Reference'],docs.map(x=>`<tr><td>${esc(x.type||'-')}</td><td>${esc(x.issueDate||'-')}</td><td>${esc(x.expiryDate||'-')}</td><td>${Number(x.reminderDays||0)}</td><td>${esc(x.ref||'-')}</td></tr>`),'No tax, fitness or insurance records for this vehicle.'))}
+ ${block('Breakdown History',table(['Date','Type','Severity','Status','Location','Repair Cost','Repair / Action'],breakdowns.map(x=>`<tr><td>${esc(x.date||'-')}${x.time?' '+esc(x.time):''}</td><td>${esc(x.type||'-')}</td><td>${esc(x.severity||'-')}</td><td>${esc(x.status||'-')}</td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td>${esc(x.repair||'-')}</td></tr>`),'No breakdown records for this vehicle.'))}
+ <div class="cards" style="margin-top:14px"><div class="card"><div class="label">Job Costs</div><div class="metric">${money(jc)}</div></div><div class="card"><div class="label">Other Expenses</div><div class="metric">${money(ec)}</div></div><div class="card"><div class="label">Total Vehicle Cost</div><div class="metric">${money(jc+ec)}</div></div></div>
+ <div class="actions" style="margin-top:16px;justify-content:flex-end"><button class="primary" type="button" onclick="exportVehicleFromDetails('${id}')">Extract Vehicle Report (Excel)</button><button class="secondary" type="button" onclick="printVehicleFromDetails('${id}')">Print / Save PDF</button></div>`;
+ modal.classList.add('show');
+}
+function prepareVehicleReport(id){const rv=document.getElementById('rVehicle'),rs=document.getElementById('rVehicleSearch'),rt=document.getElementById('rReportType'),rf=document.getElementById('rFrom'),rto=document.getElementById('rTo');if(rv)rv.value=id;if(rs){const v=(db.vehicles||[]).find(x=>x.id===id);rs.value=v?(v.no||v.reg||''):'';}if(rt)rt.value='vehicle-one';if(rf)rf.value='';if(rto)rto.value='';renderReport();}
+function exportVehicleFromDetails(id){prepareVehicleReport(id);closeVehicleDetails();exportSelectedReportExcel();}
+function printVehicleFromDetails(id){prepareVehicleReport(id);closeVehicleDetails();showView('reports');setTimeout(()=>printReport(),100);}
 function showDriverForm(id){
   const d=(db.drivers||[]).find(x=>x.id===id);
   document.getElementById('driverEditId').value=d?d.id:'';
@@ -1194,8 +1285,21 @@ function deleteExpense(id){if(confirm('Delete this expense?')){db.expenses=db.ex
 function vname(id){let v=db.vehicles.find(v=>v.id===id);return v?v.no:'Unknown'}
 function renderRecent(){let r=db.jobs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);recentJobs.innerHTML=r.length?`<table><tr><th>Date</th><th>Job</th><th>Vehicle</th><th>Status</th><th>Cost</th></tr>${r.map(j=>`<tr><td>${esc(j.date)}</td><td>${esc(j.no)}</td><td>${esc(vname(j.vehicleId))}</td><td>${esc(j.status)}</td><td>${money(j.cost)}</td></tr>`).join('')}</table>`:'<div class="empty">No job cards yet.</div>'}
 function renderReport(){
+ const reportType=document.getElementById('rReportType')?.value||'service-one';
+ const from=rFrom.value,to=rTo.value;
+ if(reportType==='breakdown-all'){
+   const rows=(db.breakdowns||[]).filter(x=>(!from||x.date>=from)&&(!to||x.date<=to)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+   reportOutput.innerHTML=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">BREAKDOWN HISTORY — ALL VEHICLES</div></div></div><p><b>Period:</b> ${esc(from||'All time')} to ${esc(to||'Present')} &nbsp; <b>Records:</b> ${rows.length}</p>${rows.length?`<table><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Severity</th><th>Status</th><th>Location</th><th>Repair Cost</th></tr>${rows.map(x=>`<tr><td>${esc(x.date||'')}${x.time?' '+esc(x.time):''}</td><td>${esc(vname(x.vehicleId))}</td><td>${esc(x.type||'')}</td><td>${esc(x.severity||'')}</td><td>${esc(x.status||'')}</td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td></tr>`).join('')}</table>`:'<p>No breakdown records in this period.</p>'}</div>`;
+   return;
+ }
+ if(reportType==='breakdown-one'){
+   if(!rVehicle.value){reportOutput.innerHTML='<div class="panel"><div class="empty">Select a vehicle to generate its breakdown history report.</div></div>';return}
+   const v=db.vehicles.find(x=>x.id===rVehicle.value),rows=(db.breakdowns||[]).filter(x=>x.vehicleId===rVehicle.value&&(!from||x.date>=from)&&(!to||x.date<=to)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+   reportOutput.innerHTML=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">BREAKDOWN HISTORY — SELECTED VEHICLE</div></div></div><h1 style="margin:0 0 8px;font-weight:800">${esc(v?.no||'Vehicle')}</h1><p><b>Registration:</b> ${esc(v?.reg||'-')} &nbsp; <b>Type:</b> ${esc(v?.type||'-')}</p><p><b>Period:</b> ${esc(from||'All time')} to ${esc(to||'Present')} &nbsp; <b>Records:</b> ${rows.length}</p>${rows.length?`<table><tr><th>Date</th><th>Type</th><th>Severity</th><th>Status</th><th>Location</th><th>Driver</th><th>Recovery</th><th>Repair Cost</th><th>Repair / Action</th></tr>${rows.map(x=>`<tr><td>${esc(x.date||'')}${x.time?' '+esc(x.time):''}</td><td>${esc(x.type||'')}</td><td>${esc(x.severity||'')}</td><td>${esc(x.status||'')}</td><td>${esc(x.location||'-')}</td><td>${esc(x.driver||'-')}</td><td>${esc(x.recovery||'-')}</td><td>${money(x.cost)}</td><td>${esc(x.repair||'-')}</td></tr>`).join('')}</table>`:'<p>No breakdown records in this period.</p>'}</div>`;
+   return;
+ }
  let id=rVehicle.value;if(!id){reportOutput.innerHTML='<div class="panel"><div class="empty">Select a vehicle to generate its report.</div></div>';return}
- let v=db.vehicles.find(x=>x.id===id),from=rFrom.value,to=rTo.value;
+ let v=db.vehicles.find(x=>x.id===id);
  let jobs=db.jobs.filter(j=>j.vehicleId===id&&(!from||j.date>=from)&&(!to||j.date<=to)).sort((a,b)=>a.date.localeCompare(b.date));
  let ex=db.expenses.filter(e=>e.vehicleId===id&&(!from||e.date>=from)&&(!to||e.date<=to)).sort((a,b)=>a.date.localeCompare(b.date));
  let jc=jobs.reduce((a,j)=>a+Number(j.cost||0),0),ec=ex.reduce((a,e)=>a+Number(e.amount||0),0);
@@ -1203,6 +1307,8 @@ function renderReport(){
  <h2 style="margin-top:24px;font-weight:800">JOB CARD HISTORY (${jobs.length})</h2>${jobs.length?`<table><tr><th>Date</th><th>Job No.</th><th>Driver</th><th>Problem</th><th>Work Done</th><th>Status</th><th>Cost</th></tr>${jobs.map(j=>`<tr><td>${esc(j.date)}</td><td>${esc(j.no)}</td><td>${esc(j.driver)}</td><td>${esc(j.problem)}</td><td>${esc(j.work)}</td><td>${esc(j.status)}</td><td>${money(j.cost)}</td></tr>`).join('')}</table>`:'<p>No job cards in this period.</p>'}
  <h2 style="margin-top:24px;font-weight:800">SERVICE HISTORY (${db.services.filter(x=>x.vehicleId===v.id).length})</h2>
 ${db.services.filter(x=>x.vehicleId===v.id).length?`<table><tr><th>Service Date</th><th>Mileage at Service (km)</th><th>Work / Notes</th><th>Next Service Mileage (km)</th></tr>${db.services.filter(x=>x.vehicleId===v.id).sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr><td>${esc(x.date)}</td><td>${Number(x.km||0).toLocaleString()}</td><td>${esc(x.work||'')}</td><td>${x.nextKm==null?'-':Number(x.nextKm).toLocaleString()}</td></tr>`).join('')}</table>`:'<p>No service records.</p>'}
+<h2 style="margin-top:24px;font-weight:800">BREAKDOWN HISTORY (${(db.breakdowns||[]).filter(x=>x.vehicleId===v.id&&(!from||x.date>=from)&&(!to||x.date<=to)).length})</h2>
+${(db.breakdowns||[]).filter(x=>x.vehicleId===v.id&&(!from||x.date>=from)&&(!to||x.date<=to)).length?`<table><tr><th>Date</th><th>Type</th><th>Severity</th><th>Status</th><th>Location</th><th>Repair Cost</th><th>Repair / Action</th></tr>${(db.breakdowns||[]).filter(x=>x.vehicleId===v.id&&(!from||x.date>=from)&&(!to||x.date<=to)).sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr><td>${esc(x.date||'')}${x.time?' '+esc(x.time):''}</td><td>${esc(x.type||'')}</td><td>${esc(x.severity||'')}</td><td>${esc(x.status||'')}</td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td>${esc(x.repair||x.description||'-')}</td></tr>`).join('')}</table>`:'<p>No breakdown records in this period.</p>'}
 <h2 style="margin-top:24px;font-weight:800">TAX / FITNESS / INSURANCE (${db.documents.filter(x=>x.vehicleId===v.id).length})</h2>
 ${db.documents.filter(x=>x.vehicleId===v.id).length?`<table><tr><th>Type</th><th>Issue Date</th><th>Expiry Date</th><th>Reminder Days</th><th>Reference</th></tr>${db.documents.filter(x=>x.vehicleId===v.id).sort((a,b)=>a.expiryDate.localeCompare(b.expiryDate)).map(x=>`<tr><td>${esc(x.type)}</td><td>${esc(x.issueDate)}</td><td>${esc(x.expiryDate)}</td><td>${Number(x.reminderDays||0)}</td><td>${esc(x.ref||'')}</td></tr>`).join('')}</table>`:'<p>No tax, fitness or insurance records.</p>'}
 <h2 style="margin-top:24px;font-weight:800">EXPENSE HISTORY (${ex.length})</h2>${ex.length?`<table><tr><th>Date</th><th>Category</th><th>Payee</th><th>Reference</th><th>Description</th><th>Amount</th></tr>${ex.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.cat)}</td><td>${esc(e.payee)}</td><td>${esc(e.ref)}</td><td>${esc(e.desc)}</td><td>${money(e.amount)}</td></tr>`).join('')}</table>`:'<p>No expenses in this period.</p>'}
@@ -1214,9 +1320,9 @@ function printReport(){
  setTimeout(()=>document.getElementById('reports').classList.remove('printing'),500);
 }
 function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Oasis-Oil-Backup-'+today()+'.json';a.click();URL.revokeObjectURL(a.href)}
-function importData(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.vehicles||!x.jobs||!x.expenses)throw Error();x.services=Array.isArray(x.services)?x.services:[];x.documents=Array.isArray(x.documents)?x.documents:[];x.drivers=Array.isArray(x.drivers)?x.drivers:[];db=x;save();alert('Backup restored.')}catch(e){alert('Invalid Oasis backup file.')}};r.readAsText(f)}
+function importData(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.vehicles||!x.jobs||!x.expenses)throw Error();x.services=Array.isArray(x.services)?x.services:[];x.breakdowns=Array.isArray(x.breakdowns)?x.breakdowns:[];x.documents=Array.isArray(x.documents)?x.documents:[];x.drivers=Array.isArray(x.drivers)?x.drivers:[];db=x;save();alert('Backup restored.')}catch(e){alert('Invalid Oasis backup file.')}};r.readAsText(f)}
 jDate.value=today();eDate.value=today();
-sDate.value=today();dIssueDate.value=today();
+sDate.value=today();bDate.value=today();dIssueDate.value=today();
 function updateClock(){
   const now=new Date();
   document.getElementById('clock').textContent=now.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'});
@@ -1266,7 +1372,7 @@ async function exportFleetExcel(kind){
     alert('Excel export library could not be loaded. Please open the app while connected to the internet.');
     return;
   }
-  const sheets={}, vehicles=db.vehicles||[], services=db.services||[], jobs=db.jobs||[], expenses=db.expenses||[];
+  const sheets={}, vehicles=db.vehicles||[], services=db.services||[], breakdowns=db.breakdowns||[], jobs=db.jobs||[], expenses=db.expenses||[];
   const vehicleMap={}; vehicles.forEach(v=>vehicleMap[v.id]=v);
   const from=document.getElementById('rFrom')?.value||'', to=document.getElementById('rTo')?.value||'';
   const selectedId=document.getElementById('rVehicle')?.value||'', selectedVehicle=vehicleMap[selectedId];
@@ -1278,6 +1384,10 @@ async function exportFleetExcel(kind){
   if(kind==='service-one'||kind==='service-all'){
     const rows=filterVehicle(services,kind==='service-all').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
     addSheet('Service History',rows.map(s=>({'Vehicle Number':vehicleNumber(s.vehicleId),'Service Date':s.date||'','Mileage at Service (km)':s.km??'','Next Service Mileage (km)':s.nextKm??'','Work / Notes':s.work||''})));
+  }
+  if(kind==='breakdown-one'||kind==='breakdown-all'){
+    const rows=filterVehicle(breakdowns,kind==='breakdown-all').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+    addSheet('Breakdown History',rows.map(b=>({'Vehicle Number':vehicleNumber(b.vehicleId),'Breakdown Date':b.date||'','Breakdown Time':b.time||'','Odometer (km)':b.km??'','Breakdown Type':b.type||'','Severity':b.severity||'','Status':b.status||'','Location':b.location||'','Driver / Reported By':b.driver||'','Recovery / Towing':b.recovery||'','Repair Cost (K)':Number(b.cost||0),'Parts Used':b.parts||''})));
   }
   if(kind==='job-one'||kind==='job-all'){
     const rows=filterVehicle(jobs,kind==='job-all').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
@@ -1291,9 +1401,11 @@ async function exportFleetExcel(kind){
     if(!selectedVehicle)return alert('Please select a vehicle for this report.');
     addSheet('Vehicle',[{'Vehicle Number':selectedVehicle.reg||selectedVehicle.no||'','Fleet Number':selectedVehicle.no||'','Vehicle Type':selectedVehicle.type||''}]);
     const sr=services.filter(s=>s.vehicleId===selectedId&&inRange(s.date)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+    const br=breakdowns.filter(b=>b.vehicleId===selectedId&&inRange(b.date)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
     const jr=jobs.filter(j=>j.vehicleId===selectedId&&inRange(j.date)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
     const er=expenses.filter(e=>e.vehicleId===selectedId&&inRange(e.date)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
     addSheet('Service History',sr.map(s=>({'Vehicle Number':vehicleNumber(s.vehicleId),'Service Date':s.date||'','Mileage at Service (km)':s.km??'','Next Service Mileage (km)':s.nextKm??'','Work / Notes':s.work||''})));
+    addSheet('Breakdown History',br.map(b=>({'Vehicle Number':vehicleNumber(b.vehicleId),'Breakdown Date':b.date||'','Breakdown Time':b.time||'','Odometer (km)':b.km??'','Breakdown Type':b.type||'','Severity':b.severity||'','Status':b.status||'','Location':b.location||'','Driver / Reported By':b.driver||'','Recovery / Towing':b.recovery||'','Repair Cost (K)':Number(b.cost||0),'Parts Used':b.parts||''})));
     addSheet('Job Cards',jr.map(j=>({'Vehicle Number':vehicleNumber(j.vehicleId),'Date':j.date||'','Job Card Number':j.no||'','Odometer (km)':j.odo??'','Status':j.status||'','Work Done':j.work||'','Parts Used':j.parts||'','Total (K)':Number(j.cost||0)})));
     addSheet('Expenses',er.map(e=>({'Vehicle Number':vehicleNumber(e.vehicleId),'Date':e.date||'','Category':e.cat||'','Payee':e.payee||'','Invoice / Reference':e.ref||'','Amount (K)':Number(e.amount||0)})));
   }
@@ -1450,7 +1562,7 @@ function editTrailerInline(id){
   const row=document.querySelector('tr[data-trailer-id="'+id+'"]');
   if(!t||!row)return;
   row.innerHTML=
-    '<td><input id="editTrailerNo_'+id+'" value="'+esc(t.no||'')+'" style="width:100%;box-sizing:border-box"></td>'+    '<td><input id="editTrailerType_'+id+'" value="'+esc(t.type||'')+'" style="width:100%;box-sizing:border-box"></td>'+    '<td><input id="editTrailerDescription_'+id+'" value="'+esc(t.description||'')+'" style="width:100%;box-sizing:border-box"></td>'+    '<td><button class="primary" type="button" onclick="saveTrailerInline(\''+id+'\')">Save</button> '+    '<button type="button" onclick="renderTrailers()">Cancel</button></td>';
+    '<td><input class="inline-edit-input" id="editTrailerNo_'+id+'" value="'+esc(t.no||'')+'" title="'+esc(t.no||'')+'" style="width:100%;min-width:180px;box-sizing:border-box"></td>'+    '<td><input class="inline-edit-input" id="editTrailerType_'+id+'" value="'+esc(t.type||'')+'" title="'+esc(t.type||'')+'" style="width:100%;min-width:180px;box-sizing:border-box"></td>'+    '<td><input class="inline-edit-input" id="editTrailerDescription_'+id+'" value="'+esc(t.description||'')+'" title="'+esc(t.description||'')+'" style="width:100%;min-width:260px;box-sizing:border-box"></td>'+    '<td style="white-space:nowrap"><button class="primary" type="button" onclick="saveTrailerInline(\''+id+'\')">Save</button> '+    '<button type="button" onclick="renderTrailers()">Cancel</button></td>';
 }
 function saveTrailerInline(id){
   const t=(db.trailers||[]).find(x=>x.id===id);
