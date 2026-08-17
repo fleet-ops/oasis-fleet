@@ -1511,48 +1511,20 @@ function showPairFormForHorse(id){showTrailerPicker(id);}
 
 function addJob(){
  if(!jVehicle.value)return alert('Select a vehicle.');
- const selectedVehicle=jVehicle.value;
- const selectedVehicleSearch=jVehicleSearch.value;
  let no=jNo.value.trim()||'JC-'+String(db.jobs.length+1).padStart(5,'0');
  let date=jDate.value||today(), cost=Number(jCost.value||0);
-
- const newJobId=crypto.randomUUID();
- db.jobs.push({
-   id:newJobId,no,vehicleId:jVehicle.value,date,
-   driver:jDriver.value.trim(),odo:jOdo.value,status:jStatus.value,
-   dateFinished:jDateFinished.value,daysTaken:jDaysTaken.value,
-   problem:jProblem.value.trim(),work:jWork.value.trim(),
-   parts:jParts.value.trim(),cost
- });
-
+ db.jobs.push({id:crypto.randomUUID(),no,vehicleId:jVehicle.value,date,driver:jDriver.value.trim(),odo:jOdo.value,status:jStatus.value,dateFinished:jDateFinished.value,daysTaken:jDaysTaken.value,problem:jProblem.value.trim(),work:jWork.value.trim(),parts:jParts.value.trim(),cost});
  if(cost>0){
    db.expenses.push({
-     id:crypto.randomUUID(),jobId:newJobId,vehicleId:jVehicle.value,date,
+     id:crypto.randomUUID(),jobId:db.jobs[db.jobs.length-1].id,vehicleId:jVehicle.value,date,
      cat:'Other',payee:'Workshop / Job Card',ref:no,amount:cost,
      desc:'Job card '+no+' - '+(jProblem.value.trim()||'Workshop job')
    });
  }
-
- // Save first. refresh() may redraw the form, so clear the fields AFTER save.
- save();
-
- // Keep the same vehicle selected for the next Job Card.
- jVehicle.value=selectedVehicle;
- jVehicleSearch.value=selectedVehicleSearch;
-
- // Clear all other Job Card entry fields.
- ['jNo','jDriver','jOdo','jDateFinished','jDaysTaken','jProblem','jWork','jParts']
-   .forEach(id=>document.getElementById(id).value='');
-
- // Reset defaults for the next Job Card.
- jDate.value=today();
- jStatus.value='Open';
- jCost.value=0;
-
- // Make sure the vehicle picker reflects the retained vehicle.
- renderVehiclePicker('jVehicle');
+ ['jNo','jDriver','jOdo','jDateFinished','jDaysTaken','jProblem','jWork','jParts'].forEach(id=>document.getElementById(id).value='');
+ jCost.value=0; save();
 }
-function renderJobs(){let q=(jobSearch?.value||'').toLowerCase(),f=jobFilter?.value||'All';let rows=db.jobs.slice().sort((a,b)=>{const num=x=>{const m=String(x.no??x.jobNo??'').match(/\d+/);return m?parseInt(m[0],10):Number.MAX_SAFE_INTEGER};const an=num(a),bn=num(b);return an-bn||String(a.no??a.jobNo??'').localeCompare(String(b.no??b.jobNo??''),undefined,{numeric:true});}).filter(j=>(f==='All'||j.status===f)&&JSON.stringify(j).toLowerCase().includes(q));jobTable.innerHTML=rows.length?`<table><tr><th>No.</th><th>Date</th><th>Vehicle</th><th>Problem</th><th>Date Finished</th><th>Days Taken</th><th>Cost</th><th>Status</th><th></th></tr>${rows.map(j=>`<tr class="job-card-clickable" onclick="openJobEdit('${j.id}')" title="Click to edit job card"><td><b>${esc(j.no)}</b></td><td>${esc(j.date)}</td><td>${esc(vname(j.vehicleId))}</td><td>${esc(j.problem)}</td><td>${esc(j.dateFinished||'')}</td><td>${esc(j.daysTaken??'')}</td><td>${money(j.cost)}</td><td><span class="badge ${j.status==='Completed'?'done':'open'}">${esc(j.status)}</span></td><td><button class="danger" onclick="event.stopPropagation();deleteJob('${j.id}')">Delete</button></td></tr>`).join('')}</table>`:'<div class="empty">No job cards found.</div>'}
+function renderJobs(){let q=(jobSearch?.value||'').toLowerCase(),f=jobFilter?.value||'All';let rows=db.jobs.slice().sort((a,b)=>b.date.localeCompare(a.date)).filter(j=>(f==='All'||j.status===f)&&JSON.stringify(j).toLowerCase().includes(q));jobTable.innerHTML=rows.length?`<table><tr><th>No.</th><th>Date</th><th>Vehicle</th><th>Problem</th><th>Date Finished</th><th>Days Taken</th><th>Cost</th><th>Status</th><th></th></tr>${rows.map(j=>`<tr class="job-card-clickable" onclick="openJobEdit('${j.id}')" title="Click to edit job card"><td><b>${esc(j.no)}</b></td><td>${esc(j.date)}</td><td>${esc(vname(j.vehicleId))}</td><td>${esc(j.problem)}</td><td>${esc(j.dateFinished||'')}</td><td>${esc(j.daysTaken??'')}</td><td>${money(j.cost)}</td><td><span class="badge ${j.status==='Completed'?'done':'open'}">${esc(j.status)}</span></td><td><button class="danger" onclick="event.stopPropagation();deleteJob('${j.id}')">Delete</button></td></tr>`).join('')}</table>`:'<div class="empty">No job cards found.</div>'}
 function deleteJob(id){
  if(confirm('Delete this job card?')){
    const job=db.jobs.find(j=>j.id===id);
@@ -1636,6 +1608,41 @@ function renderReportLegacy(){
  if(reportType==='service-all'){
    const rows=dedupedServices().filter(x=>(!from||String(x.date||'')>=from)&&(!to||String(x.date||'')<=to)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
    reportOutput.innerHTML=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">SERVICE HISTORY — ALL VEHICLES</div></div></div><p><b>Period:</b> ${esc(from||'All time')} to ${esc(to||'Present')} &nbsp; <b>Records:</b> ${rows.length}</p>${rows.length?`<table><tr><th>Vehicle Number</th><th>Service Date</th><th>Mileage at Service (km)</th><th>Work / Notes</th><th>Next Service Mileage (km)</th><th>Serviced By</th></tr>${rows.map(x=>{const v=db.vehicles.find(v=>v.id===x.vehicleId);const label=v?.reg||v?.vehicleNumber||v?.vehicle_number||v?.registration||x.vehicleRef||v?.no||'-';return `<tr><td>${esc(label)}</td><td>${esc(x.date||'')}</td><td>${Number(x.km||0).toLocaleString()}</td><td>${esc(x.work||x.notes||'-')}</td><td>${x.nextKm==null||x.nextKm===''?'-':Number(x.nextKm).toLocaleString()}</td><td>${esc(x.servicedBy||'-')}</td></tr>`}).join('')}</table>`:'<p>No service records in this period.</p>'}</div>`;
+   return;
+ }
+ if(reportType==='job-one'||reportType==='job-all'){
+   if(reportType==='job-one'&&!rVehicle.value){reportOutput.innerHTML='<div class="panel"><div class="empty">Select a vehicle to generate its job card report.</div></div>';return;}
+   const selectedId=rVehicle.value;
+   const v=selectedId?db.vehicles.find(x=>x.id===selectedId):null;
+   const rows=(db.jobs||[]).filter(x=>(reportType==='job-all'||x.vehicleId===selectedId)&&(!from||String(x.date||'')>=from)&&(!to||String(x.date||'')<=to)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+   const title=reportType==='job-all'?'JOB CARDS — ALL VEHICLES':'JOB CARDS — SELECTED VEHICLE';
+   reportOutput.innerHTML=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">${title}</div></div></div>${v?`<h1 style="margin:0 0 8px;font-weight:800">${esc(vehicleNumber(v))}</h1><p><b>Vehicle Number:</b> ${esc(vehicleNumber(v))} &nbsp; <b>Type:</b> ${esc(v.type||'-')}</p>`:''}<p><b>Period:</b> ${esc(from||'All time')} to ${esc(to||'Present')} &nbsp; <b>Records:</b> ${rows.length}</p>${rows.length?`<table><tr><th>Vehicle Number</th><th>Date</th><th>Job Card</th><th>Problem</th><th>Work Done</th><th>Finished</th><th>Days</th><th>Status</th><th>Cost</th></tr>${rows.map(x=>`<tr><td>${esc(vname(x.vehicleId,x.vehicleRef))}</td><td>${esc(x.date||'-')}</td><td>${esc(x.no||'-')}</td><td>${esc(x.problem||'-')}</td><td>${esc(x.work||'-')}</td><td>${esc(x.dateFinished||'-')}</td><td>${esc(x.daysTaken??'-')}</td><td>${esc(x.status||'-')}</td><td>${money(x.cost)}</td></tr>`).join('')}</table><div class="cards" style="margin-top:12px"><div class="card"><div class="label">Total Job Costs</div><div class="metric">${money(rows.reduce((a,x)=>a+Number(x.cost||0),0))}</div></div></div>`:'<p>No job cards in this period.</p>'}</div>`;
+   return;
+ }
+ if(reportType==='expense-one'||reportType==='expense-all'){
+   if(reportType==='expense-one'&&!rVehicle.value){reportOutput.innerHTML='<div class="panel"><div class="empty">Select a vehicle to generate its expense report.</div></div>';return;}
+   const selectedId=rVehicle.value;
+   const v=selectedId?db.vehicles.find(x=>x.id===selectedId):null;
+   const rows=(db.expenses||[]).filter(x=>(reportType==='expense-all'||x.vehicleId===selectedId)&&(!from||String(x.date||'')>=from)&&(!to||String(x.date||'')<=to)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+   const total=rows.reduce((a,x)=>a+Number(x.amount||0),0);
+   const title=reportType==='expense-all'?'EXPENSES — ALL VEHICLES':'EXPENSES — SELECTED VEHICLE';
+   reportOutput.innerHTML=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">${title}</div></div></div>${v?`<h1 style="margin:0 0 8px;font-weight:800">${esc(vehicleNumber(v))}</h1>`:''}<p><b>Period:</b> ${esc(from||'All time')} to ${esc(to||'Present')} &nbsp; <b>Records:</b> ${rows.length}</p>${rows.length?`<table><tr><th>Vehicle Number</th><th>Date</th><th>Category</th><th>Payee</th><th>Reference</th><th>Description</th><th>Amount</th></tr>${rows.map(x=>`<tr><td>${esc(vname(x.vehicleId,x.vehicleRef))}</td><td>${esc(x.date||'-')}</td><td>${esc(x.cat||'-')}</td><td>${esc(x.payee||'-')}</td><td>${esc(x.ref||'-')}</td><td>${esc(x.desc||'-')}</td><td>${money(x.amount)}</td></tr>`).join('')}</table><div class="cards" style="margin-top:12px"><div class="card"><div class="label">TOTAL EXPENSES</div><div class="metric">${money(total)}</div></div></div>`:'<p>No expenses in this period.</p>'}</div>`;
+   return;
+ }
+ if(reportType==='vehicle-one'){
+   if(!rVehicle.value){reportOutput.innerHTML='<div class="panel"><div class="empty">Select a vehicle to generate its complete report.</div></div>';return;}
+   const v=db.vehicles.find(x=>x.id===rVehicle.value); if(!v){reportOutput.innerHTML='<div class="panel"><div class="empty">Vehicle not found.</div></div>';return;}
+   const ss=dedupedServices().filter(x=>x.vehicleId===v.id&&inRange(x.date)), bs=(db.breakdowns||[]).filter(x=>x.vehicleId===v.id&&inRange(x.date)), js=(db.jobs||[]).filter(x=>x.vehicleId===v.id&&inRange(x.date)), es=(db.expenses||[]).filter(x=>x.vehicleId===v.id&&inRange(x.date)), ds=(db.documents||[]).filter(x=>x.vehicleId===v.id);
+   const d=(db.drivers||[]).find(x=>x.vehicleId===v.id), pair=(db.pairs||[]).find(x=>x.horseId===v.id), tr=pair?(db.trailers||[]).find(x=>x.id===pair.trailerId):null;
+   const table=(heads,rows,empty)=>rows.length?`<div style="overflow:auto"><table><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr>${rows.join('')}</table></div>`:`<p>${empty}</p>`;
+   const jc=js.reduce((a,x)=>a+Number(x.cost||0),0), ec=es.reduce((a,x)=>a+Number(x.amount||0),0);
+   reportOutput.innerHTML=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">COMPLETE VEHICLE REPORT</div></div></div><h1 style="margin:0 0 8px;font-weight:800">${esc(vehicleNumber(v))}</h1><div class="grid3"><div><label>Vehicle Number</label><b>${esc(vehicleNumber(v))}</b></div><div><label>Fleet Number</label><b>${esc(v.no||'-')}</b></div><div><label>Vehicle Type</label><b>${esc(v.type||'-')}</b></div><div><label>Assigned Driver</label>${d?esc(d.name||'-')+' — '+esc(d.phone||'-'):'-'}</div><div><label>Paired Trailer</label>${tr?esc(tr.no||'-')+' — '+esc(tr.reg||'-'):'-'}</div><div><label>Period</label>${esc(from||'All time')} to ${esc(to||'Present')}</div></div>
+   <h3>Service History (${ss.length})</h3>${table(['Date','Mileage','Work / Notes','Next Service','Serviced By'],ss.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))).map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${x.km==null?'-':Number(x.km).toLocaleString()}</td><td>${esc(x.work||x.notes||'-')}</td><td>${x.nextKm==null||x.nextKm===''?'-':Number(x.nextKm).toLocaleString()}</td><td>${esc(x.servicedBy||'-')}</td></tr>`),'No service history.')}
+   <h3>Breakdown History (${bs.length})</h3>${table(['Date','Type','Severity','Status','Location','Repair Cost','Repair / Action'],bs.map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${esc(x.type||'-')}</td><td>${esc(x.severity||'-')}</td><td>${esc(x.status||'-')}</td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td>${esc(x.repair||'-')}</td></tr>`),'No breakdown history.')}
+   <h3>Tax / Fitness / Insurance (${ds.length})</h3>${table(['Type','Issue Date','Expiry / Due','Reminder','Reference'],ds.map(x=>`<tr><td>${esc(x.type||'-')}</td><td>${esc(x.issueDate||'-')}</td><td>${esc(x.expiryDate||'-')}</td><td>${Number(x.reminderDays||0)} days</td><td>${esc(x.ref||'-')}</td></tr>`),'No tax, fitness or insurance records.')}
+   <h3>Job Cards (${js.length})</h3>${table(['Date','Job Card','Problem','Work Done','Finished','Days','Status','Cost'],js.map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${esc(x.no||'-')}</td><td>${esc(x.problem||'-')}</td><td>${esc(x.work||'-')}</td><td>${esc(x.dateFinished||'-')}</td><td>${esc(x.daysTaken??'-')}</td><td>${esc(x.status||'-')}</td><td>${money(x.cost)}</td></tr>`),'No job cards.')}
+   <h3>Expenses (${es.length})</h3>${table(['Date','Category','Payee','Reference','Description','Amount'],es.map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${esc(x.cat||'-')}</td><td>${esc(x.payee||'-')}</td><td>${esc(x.ref||'-')}</td><td>${esc(x.desc||'-')}</td><td>${money(x.amount)}</td></tr>`),'No expenses.')}
+   <div class="cards" style="margin-top:12px"><div class="card"><div class="label">Job Costs</div><div class="metric">${money(jc)}</div></div><div class="card"><div class="label">Expenses</div><div class="metric">${money(ec)}</div></div><div class="card"><div class="label">Total Spent</div><div class="metric">${money(jc+ec)}</div></div></div></div>`;
    return;
  }
  if(reportType==='breakdown-all'){
