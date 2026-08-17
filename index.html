@@ -715,6 +715,7 @@ async function pullCloud(){
         );
       }
       refresh();
+      notifyReminders();
     }else if(hasLocal){
       await cloudClient.from('fleet_data').upsert(
         {id:'company',data:db,updated_at:new Date().toISOString()},
@@ -767,6 +768,7 @@ function subscribeCloud(){
       localStorage.setItem(KEY,JSON.stringify(db));
       localStorage.setItem('oasisOilFleet_lastRemoteUpdate',String(remoteUpdated||Date.now()));
       refresh();
+      notifyReminders();
       setCloudStatus('Live • Updated automatically from another device',true);
     })
     .subscribe((status)=>{
@@ -1391,9 +1393,10 @@ function addDocument(){
   ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>document.getElementById(id).value='');
   dReminderDays.value=15;
   save();
+  notifyReminders();
 }
 function deleteDocument(id){
-  if(confirm('Delete this compliance record?')){db.documents=db.documents.filter(x=>x.id!==id);save();}
+  if(confirm('Delete this compliance record?')){db.documents=db.documents.filter(x=>x.id!==id);save();notifyReminders();}
 }
 function editDocument(id){
  const x=(db.documents||[]).find(d=>d.id===id);if(!x)return;
@@ -1409,7 +1412,7 @@ function editDocument(id){
 }
 function saveDocumentEdit(id){
  const x=(db.documents||[]).find(d=>d.id===id);if(!x)return; const issue=document.getElementById('ueDocIssue').value,expiry=document.getElementById('ueDocExpiry').value;if(expiry<issue)return alert('Expiry date cannot be before issue date.');
- x.vehicleId=document.getElementById('ueDocVehicle').value;x.type=document.getElementById('ueDocType').value.trim();x.issueDate=issue;x.expiryDate=expiry;x.reminderDays=Number(document.getElementById('ueDocReminder').value||0);x.ref=document.getElementById('ueDocRef').value.trim();x.notes=document.getElementById('ueDocNotes').value.trim();closeUnifiedEdit();save();renderDocuments();
+ x.vehicleId=document.getElementById('ueDocVehicle').value;x.type=document.getElementById('ueDocType').value.trim();x.issueDate=issue;x.expiryDate=expiry;x.reminderDays=Math.max(0,Number(document.getElementById('ueDocReminder').value||0));x.ref=document.getElementById('ueDocRef').value.trim();x.notes=document.getElementById('ueDocNotes').value.trim();closeUnifiedEdit();save();renderDocuments();notifyReminders();
 }
 
 function renderDocuments(){
@@ -1431,41 +1434,63 @@ function renderDocuments(){
 }
 function collectReminders(){
   const out=[];
-  db.documents.forEach(x=>{
-    const days=dateDiffDays(x.expiryDate), n=Number(x.reminderDays||0);
-    if(days!==null && days<=n) out.push({
-      date:x.expiryDate, days, title:`${x.type} — ${vname(x.vehicleId)}`,
-      text:days<0?`${Math.abs(days)} day(s) overdue`:(days===0?'Due today':`Expires in ${days} day(s)`)
-    });
+  (db.documents||[]).forEach(x=>{
+    const days=dateDiffDays(x.expiryDate), n=Math.max(0,Number(x.reminderDays??0));
+    if(days!==null && days<=n){
+      const vehicle=vname(x.vehicleId);
+      out.push({
+        recordId:String(x.id||''),
+        date:x.expiryDate,
+        days,
+        reminderDays:n,
+        title:`${x.type} — ${vehicle}`,
+        text:days<0?`${Math.abs(days)} day(s) overdue`:(days===0?'Due today':`Expires in ${days} day(s)`)
+      });
+    }
   });
-  return out.sort((a,b)=>(a.kmRemaining??Infinity)-(b.kmRemaining??Infinity));
+  return out.sort((a,b)=>a.days-b.days);
 }
-function renderReminders(){
-  const rows=collectReminders();
-  reminders.innerHTML=rows.length?rows.slice(0,15).map(r=>{
-    const cls=(r.kmRemaining!==undefined && r.kmRemaining<=0)?'open':(r.days!==undefined && r.days<0?'open':'done');
-    return `<div class="reminder-row" style="padding:10px 0;border-bottom:1px solid #eee">
-      <b>${esc(r.title)}</b> — ${esc(r.text)} <span class="badge ${cls}">${esc(r.date)}</span>
-    </div>`;
-  }).join(''):'<div class="empty">No compliance reminders due within their configured reminder periods.</div>';
+function reminderNotificationKey(r){
+  // The key changes whenever the actual record, expiry date, reminder setting,
+  // or number of days remaining changes. This prevents stale reminders after an edit.
+  return [r.recordId,r.date,r.reminderDays,r.days].join('|');
 }
 function notifyReminders(){
   const rows=collectReminders();
-  if(!rows.length)return;
-  const todayKey=new Date().toISOString().slice(0,10);
+  const currentKeys=new Set(rows.map(reminderNotificationKey));
   const logged=getNotificationLog();
+
+  // Keep only notifications that still correspond to a currently active reminder.
+  // This removes old entries when a document is renewed, edited, deleted, or its
+  // reminder period is changed.
+  const activeLogged=logged.filter(x=>currentKeys.has(String(x.key||'')));
+  const newlyCreated=[];
+
   rows.slice(0,15).forEach(r=>{
-    const key=r.title+'|'+r.text+'|'+r.date;
-    if(!logged.some(x=>x.key===key)){
-      logged.unshift({id:Date.now()+'-'+Math.random(),key,title:'Fleet-Ops Reminder',text:r.title+' — '+r.text,date:new Date().toLocaleString()});
+    const key=reminderNotificationKey(r);
+    if(!activeLogged.some(x=>x.key===key)){
+      const item={
+        id:Date.now()+'-'+Math.random(),
+        key,
+        title:'Fleet-Ops Reminder',
+        text:r.title+' — '+r.text,
+        date:new Date().toLocaleString()
+      };
+      activeLogged.unshift(item);
+      newlyCreated.push(r);
     }
   });
-  saveNotificationLog(logged);
+
+  // Save the reconciled notification list even when there are zero reminders.
+  saveNotificationLog(activeLogged);
   updateNotificationBadge();
-  if('Notification' in window && Notification.permission==='granted'){
-    rows.slice(0,5).forEach(r=>new Notification('Fleet-Ops Reminder',{body:r.title+' — '+r.text}));
-  }
   refreshNotificationCenter();
+
+  // Browser notifications are sent only for genuinely new/current reminder states,
+  // never repeatedly for an old record every hour.
+  if('Notification' in window && Notification.permission==='granted'){
+    newlyCreated.slice(0,5).forEach(r=>new Notification('Fleet-Ops Reminder',{body:r.title+' — '+r.text}));
+  }
 }
 function requestReminderPermission(){
   if('Notification' in window && Notification.permission==='default'){
@@ -2007,7 +2032,7 @@ setInterval(updateClock,60000);
 refresh();
 try{syncReportControls();}catch(e){}
 setTimeout(()=>{ requestReminderPermission(); notifyReminders(); }, 1200);
-setInterval(()=>{ renderReminders(); notifyReminders(); }, 3600000);
+setInterval(()=>{ notifyReminders(); }, 3600000);
 
 const NOTIFICATION_LOG_KEY='oasisOilFleet_notifications_v1';
 
