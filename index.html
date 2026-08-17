@@ -964,6 +964,32 @@ function normalizeServiceVehicleNumber(value){
   if(s.endsWith('ZM'))s=s.slice(0,-2);
   return s;
 }
+function serviceVehicleKey(service){
+  const v=(db.vehicles||[]).find(x=>x.id===service.vehicleId);
+  const raw=v ? (v.reg||v.vehicleNumber||v.vehicle_number||v.registration||v.no||'') : (service.vehicleRef||'');
+  let key=String(raw||'').toUpperCase().trim().replace(/\s+/g,'').replace(/-/g,'');
+  if(key.endsWith('ZM')) key=key.slice(0,-2);
+  return key || ('ID:'+String(service.vehicleId||service.vehicleRef||''));
+}
+function serviceEventKey(service){
+  return [serviceVehicleKey(service),String(service.date||'').trim(),Number(service.km||0),Number(service.nextKm||0)].join('|');
+}
+function normalizeServiceHistory(){
+  const source=Array.isArray(db.services)?db.services:[];
+  const seen=new Map(), unique=[]; let changed=false;
+  for(const svc of source){
+    const key=serviceEventKey(svc);
+    if(seen.has(key)){
+      const existing=seen.get(key);
+      const score=a=>['work','notes','servicedBy'].reduce((n,k)=>n+(String(a[k]||'').trim()?1:0),0);
+      if(score(svc)>score(existing)) Object.assign(existing,svc,{id:existing.id});
+      changed=true;
+    }else{ seen.set(key,svc); unique.push(svc); }
+  }
+  if(changed) db.services=unique;
+  return changed;
+}
+
 function mergeImportedServiceHistory(){
   db.services=Array.isArray(db.services)?db.services:[];
   let changed=false;
@@ -998,23 +1024,13 @@ function mergeImportedServiceHistory(){
     });
     changed=true;
   }
-  // Remove duplicate copies of the same service event created by older versions.
-  // A service event is identified by vehicle + service date + mileage + next-service mileage.
-  const seenServices=new Set();
-  const uniqueServices=[];
-  for(const svc of db.services){
-    const vehicleKey=svc.vehicleId||('ref:'+String(svc.vehicleRef||'').trim().toUpperCase());
-    const key=[vehicleKey,String(svc.date||'').trim(),Number(svc.km||0),Number(svc.nextKm||0)].join('|');
-    if(seenServices.has(key)){ changed=true; continue; }
-    seenServices.add(key);
-    uniqueServices.push(svc);
-  }
-  db.services=uniqueServices;
+  if(normalizeServiceHistory()) changed=true;
   return changed;
 }
 mergeImportedServiceHistory();
+normalizeServiceHistory();
 persistDb();
-const save=()=>{persistDb();refresh()};
+const save=()=>{normalizeServiceHistory();persistDb();refresh()};
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const money=n=>'K'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const today=()=>new Date().toISOString().slice(0,10);
@@ -1098,20 +1114,20 @@ function addService(){
   const km=Number(sKm.value);
   const nextKm=sNextKm.value?Number(sNextKm.value):km+15000;
   if(nextKm<km)return alert('Next service km cannot be lower than the service km.');
-  db.services.push({
-    id:crypto.randomUUID(), vehicleId:sVehicle.value, date:sDate.value, km,
-    nextKm, work:sWork.value.trim(), notes:'',
-    servicedBy:(sServicedBy?.value||'').trim()
-  });
-  ['sDate','sKm','sNextKm','sWork','sServicedBy'].forEach(id=>{
-    const el=document.getElementById(id); if(el)el.value='';
-  });
+  const candidate={id:crypto.randomUUID(),vehicleId:sVehicle.value,date:sDate.value,km,nextKm,work:sWork.value.trim(),notes:'',servicedBy:(sServicedBy?.value||'').trim()};
+  if((db.services||[]).some(x=>serviceEventKey(x)===serviceEventKey(candidate))){
+    alert('This service record already exists for this vehicle.');
+    return;
+  }
+  db.services.push(candidate);
+  ['sDate','sKm','sNextKm','sWork','sServicedBy'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   save();
 }
 function deleteService(id){
   if(confirm('Delete this service record?')){db.services=db.services.filter(x=>x.id!==id);save();}
 }
 function renderServices(){
+  normalizeServiceHistory();
   let q=(serviceSearch?.value||'').toLowerCase();
   let rows=db.services.slice().sort((a,b)=>b.date.localeCompare(a.date))
     .filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
@@ -1489,6 +1505,28 @@ function renderRecent(){let r=db.jobs.slice().sort((a,b)=>b.date.localeCompare(a
 function renderReport(){
  const reportType=document.getElementById('rReportType')?.value||'service-one';
  const from=rFrom.value,to=rTo.value;
+ const dedupedServices=()=>{
+   const seen=new Set(), out=[];
+   for(const svc of (db.services||[])){
+     const key=serviceEventKey(svc);
+     if(seen.has(key)) continue;
+     seen.add(key); out.push(svc);
+   }
+   return out;
+ };
+ if(reportType==='service-one'){
+   if(!rVehicle.value){reportOutput.innerHTML='<div class="panel"><div class="empty">Select a vehicle to generate its service history report.</div></div>';return;}
+   const v=db.vehicles.find(x=>x.id===rVehicle.value);
+   const rows=dedupedServices().filter(x=>x.vehicleId===rVehicle.value&&(!from||String(x.date||'')>=from)&&(!to||String(x.date||'')<=to)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+   const vehicleLabel=v?.reg||v?.vehicleNumber||v?.vehicle_number||v?.registration||v?.no||'Vehicle';
+   reportOutput.innerHTML=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">SERVICE HISTORY — SELECTED VEHICLE</div></div></div><h1 style="margin:0 0 8px;font-weight:800">${esc(vehicleLabel)}</h1><p><b>Vehicle Number:</b> ${esc(v?.reg||v?.vehicleNumber||v?.vehicle_number||v?.registration||'-')} &nbsp; <b>Type:</b> ${esc(v?.type||'-')}</p><p><b>Period:</b> ${esc(from||'All time')} to ${esc(to||'Present')} &nbsp; <b>Records:</b> ${rows.length}</p>${rows.length?`<table><tr><th>Service Date</th><th>Mileage at Service (km)</th><th>Work / Notes</th><th>Next Service Mileage (km)</th><th>Serviced By</th></tr>${rows.map(x=>`<tr><td>${esc(x.date||'')}</td><td>${Number(x.km||0).toLocaleString()}</td><td>${esc(x.work||x.notes||'-')}</td><td>${x.nextKm==null||x.nextKm===''?'-':Number(x.nextKm).toLocaleString()}</td><td>${esc(x.servicedBy||'-')}</td></tr>`).join('')}</table>`:'<p>No service records in this period.</p>'}</div>`;
+   return;
+ }
+ if(reportType==='service-all'){
+   const rows=dedupedServices().filter(x=>(!from||String(x.date||'')>=from)&&(!to||String(x.date||'')<=to)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+   reportOutput.innerHTML=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">SERVICE HISTORY — ALL VEHICLES</div></div></div><p><b>Period:</b> ${esc(from||'All time')} to ${esc(to||'Present')} &nbsp; <b>Records:</b> ${rows.length}</p>${rows.length?`<table><tr><th>Vehicle Number</th><th>Service Date</th><th>Mileage at Service (km)</th><th>Work / Notes</th><th>Next Service Mileage (km)</th><th>Serviced By</th></tr>${rows.map(x=>{const v=db.vehicles.find(v=>v.id===x.vehicleId);const label=v?.reg||v?.vehicleNumber||v?.vehicle_number||v?.registration||x.vehicleRef||v?.no||'-';return `<tr><td>${esc(label)}</td><td>${esc(x.date||'')}</td><td>${Number(x.km||0).toLocaleString()}</td><td>${esc(x.work||x.notes||'-')}</td><td>${x.nextKm==null||x.nextKm===''?'-':Number(x.nextKm).toLocaleString()}</td><td>${esc(x.servicedBy||'-')}</td></tr>`}).join('')}</table>`:'<p>No service records in this period.</p>'}</div>`;
+   return;
+ }
  if(reportType==='breakdown-all'){
    const rows=(db.breakdowns||[]).filter(x=>(!from||x.date>=from)&&(!to||x.date<=to)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
    reportOutput.innerHTML=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">BREAKDOWN HISTORY — ALL VEHICLES</div></div></div><p><b>Period:</b> ${esc(from||'All time')} to ${esc(to||'Present')} &nbsp; <b>Records:</b> ${rows.length}</p>${rows.length?`<table><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Severity</th><th>Status</th><th>Location</th><th>Repair Cost</th></tr>${rows.map(x=>`<tr><td>${esc(x.date||'')}${x.time?' '+esc(x.time):''}</td><td>${esc(vname(x.vehicleId))}</td><td>${esc(x.type||'')}</td><td>${esc(x.severity||'')}</td><td>${esc(x.status||'')}</td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td></tr>`).join('')}</table>`:'<p>No breakdown records in this period.</p>'}</div>`;
@@ -1594,8 +1632,10 @@ async function exportFleetExcel(kind){
   if(kind==='service-one'||kind==='service-all'){
     const serviceSeen=new Set();
     const rows=filterVehicle(services,kind==='service-all').filter(s=>{
-      const key=[s.vehicleId||('ref:'+String(s.vehicleRef||'').trim().toUpperCase()),String(s.date||'').trim(),Number(s.km||0),Number(s.nextKm||0)].join('|');
-      if(serviceSeen.has(key))return false; serviceSeen.add(key); return true;
+      const key=serviceEventKey(s);
+      if(serviceSeen.has(key))return false;
+      serviceSeen.add(key);
+      return true;
     }).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
     addSheet('Service History',rows.map(s=>({'Vehicle Number':excelVehicleNumber(s.vehicleId)||s.vehicleRef||'','Service Date':s.date||'','Mileage at Service (km)':s.km??'','Next Service Mileage (km)':s.nextKm??'','Work / Notes':s.work||s.notes||'','Serviced By':s.servicedBy||''})));
   }
