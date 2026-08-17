@@ -81,7 +81,7 @@ html[data-theme="dark"] .panel,html[data-theme="dark"] .card{background:rgba(17,
 .dashboard-link-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(15,23,42,.10)}
 .dashboard-link-card:focus-visible{outline:3px solid rgba(79,70,229,.28);outline-offset:2px}
 .dashboard-link-hint{font-size:.78rem;font-weight:700;color:#64748b;margin-top:7px;opacity:.9}
-</style>
+.compliance-results-block{overflow-x:auto}.compliance-results-block h3{margin:0 0 10px;font-weight:800}</style>
 
 <style>
 #clock{
@@ -477,43 +477,56 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 </section>
 
 <section id="documents" class="view">
-<h1>Tax, Fitness & Insurance</h1>
-<p class="sub">Store issue and expiry dates for every vehicle and choose how many days before expiry you want the automatic reminder.</p>
-
+<h1>Tax, Fitness &amp; Insurance</h1>
+<p class="sub">Manage compliance records for both vehicles and trailers, including road tax, fitness, insurance, ZABS certificates and electrical certificates.</p>
 <div class="panel">
-<h2>Add Compliance Record</h2>
-<div class="grid3">
-<div><label>Vehicle</label>
-  <div class="vehicle-picker" id="dVehiclePicker">
-    <input id="dVehicleSearch" placeholder="Search or select vehicle..." autocomplete="off"
-           onfocus="openVehiclePicker('dVehicle')" oninput="renderVehiclePicker('dVehicle')">
-    <input type="hidden" id="dVehicle">
-    <div class="vehicle-picker-list" id="dVehicleList"></div>
+  <div class="actions" style="margin-bottom:16px">
+    <button type="button" class="primary" id="complianceVehicleTab" onclick="showComplianceTab('vehicles')">Vehicles</button>
+    <button type="button" class="secondary" id="complianceTrailerTab" onclick="showComplianceTab('trailers')">Trailers</button>
+  </div>
+  <div id="vehicleCompliancePanel">
+    <h2>Add Vehicle Compliance Record</h2>
+    <div class="grid3">
+      <div><label>Vehicle</label><div class="vehicle-picker" id="dVehiclePicker">
+        <input id="dVehicleSearch" placeholder="Search or select vehicle..." autocomplete="off" onfocus="openVehiclePicker('dVehicle')" oninput="renderVehiclePicker('dVehicle')">
+        <input type="hidden" id="dVehicle"><div class="vehicle-picker-list" id="dVehicleList"></div>
+      </div></div>
+      <div><label>Document Type</label><select id="dType">
+        <option>Road Tax</option><option>Fitness</option><option>Insurance</option>
+        <option>ZABS Certificate</option><option>Electrical Certificate</option>
+      </select></div>
+      <div><label>Issue Date</label><input type="date" id="dIssueDate"></div>
+    </div>
+    <div class="grid3" style="margin-top:12px">
+      <div><label>Expiry / Due Date</label><input type="date" id="dExpiryDate"></div>
+      <div><label>Remind Me Before (days)</label><input type="number" min="0" id="dReminderDays" value="30"></div>
+      <div><label>Reference / Policy No.</label><input id="dRef" placeholder="Optional"></div>
+    </div>
+    <div style="margin-top:12px"><label>Notes</label><textarea id="dNotes" placeholder="Optional notes"></textarea></div>
+    <div class="actions"><button class="primary" onclick="addDocument()">Save Vehicle Record</button></div>
+  </div>
+  <div id="trailerCompliancePanel" style="display:none">
+    <h2>Add Trailer Compliance Record</h2>
+    <div class="grid3">
+      <div><label>Trailer</label><select id="tdTrailer"><option value="">Select trailer...</option></select></div>
+      <div><label>Document Type</label><select id="tdType">
+        <option>Road Tax</option><option>Fitness</option><option>Insurance</option>
+        <option>ZABS Certificate</option><option>Electrical Certificate</option>
+      </select></div>
+      <div><label>Issue Date</label><input type="date" id="tdIssueDate"></div>
+    </div>
+    <div class="grid3" style="margin-top:12px">
+      <div><label>Expiry / Due Date</label><input type="date" id="tdExpiryDate"></div>
+      <div><label>Remind Me Before (days)</label><input type="number" min="0" id="tdReminderDays" value="30"></div>
+      <div><label>Reference / Policy No.</label><input id="tdRef" placeholder="Optional"></div>
+    </div>
+    <div style="margin-top:12px"><label>Notes</label><textarea id="tdNotes" placeholder="Optional notes"></textarea></div>
+    <div class="actions"><button class="primary" onclick="addTrailerDocument()">Save Trailer Record</button></div>
   </div>
 </div>
-<div><label>Document Type</label>
-<select id="dType">
-<option>Road Tax</option>
-<option>Fitness</option>
-<option>Insurance</option></select>
-</div>
-<div><label>Issue Date</label><input type="date" id="dIssueDate"></div>
-</div>
-
-<div class="grid3" style="margin-top:12px">
-<div><label>Expiry Date</label><input type="date" id="dExpiryDate"></div>
-<div><label>Remind Me Before (days)</label><input type="number" min="0" id="dReminderDays" value="30"></div>
-<div><label>Reference / Policy No.</label><input id="dRef" placeholder="Optional"></div>
-</div>
-
-<div class="actions"><button class="primary" onclick="addDocument()">Save Record</button></div>
-</div>
-
 <div class="panel">
-<div class="actions no-print">
-<input class="search" id="documentSearch" placeholder="Search tax, fitness or insurance..." oninput="renderDocuments()">
-</div>
-<div id="documentTable"></div>
+  <div class="actions no-print"><input class="search" id="documentSearch" placeholder="Search tax, fitness, insurance or certificates..." oninput="renderDocuments()"></div>
+  <div id="documentTable"></div>
 </div>
 </section>
 
@@ -638,7 +651,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 
 <script>
 const KEY='oasisOilFleet_v1';
-let db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[]};
+let db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[],trailerDocuments:[]};
 let cloudClient=null,cloudChannel=null,cloudSaveTimer=null,cloudBusy=false,cloudRetryTimer=null,cloudReady=false;
 const CLOUD_URL_KEY='https://vkefsqhzrldtirlohthv.supabase.co';
 
@@ -725,7 +738,7 @@ async function pullCloud(){
         {onConflict:'id'}
       );
     }else{
-      db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[]};
+      db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[],trailerDocuments:[]};
       localStorage.setItem(KEY,JSON.stringify(db));
       await cloudClient.from('fleet_data').upsert(
         {id:'company',data:db,updated_at:new Date().toISOString()},
@@ -1078,7 +1091,7 @@ mergeImportedServiceHistory();
 normalizeServiceHistory();
 persistDb();
 function ensureDbShape(){
-  const keys=['vehicles','trailers','pairs','drivers','jobs','expenses','services','breakdowns','documents'];
+  const keys=['vehicles','trailers','pairs','drivers','jobs','expenses','services','breakdowns','documents','trailerDocuments'];
   keys.forEach(k=>{if(!Array.isArray(db[k]))db[k]=[];});
   return db;
 }
@@ -1094,7 +1107,7 @@ function refresh(){
  document.getElementById('mOpen').textContent=db.jobs.filter(j=>j.status!=='Completed').length;
  document.getElementById('mDone').textContent=db.jobs.filter(j=>j.status==='Completed').length;
  document.getElementById('mExpense').textContent=money(db.expenses.reduce((a,e)=>a+Number(e.amount||0),0));
- populateSelects();renderVehicles();renderDrivers();renderTrailers();renderServices();renderBreakdowns();renderDocuments();renderJobs();renderExpenses();renderReport();renderRecent();renderReminders();refreshNotificationCenter();
+ populateSelects();populateTrailerComplianceSelect();renderVehicles();renderDrivers();renderTrailers();renderServices();renderBreakdowns();renderDocuments();renderJobs();renderExpenses();renderReport();renderRecent();renderReminders();refreshNotificationCenter();
 }
 function openVehiclePicker(id){
  document.getElementById(id+'Picker').classList.add('open');
@@ -1269,67 +1282,87 @@ function renderBreakdowns(){
   let rows=db.breakdowns.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
   breakdownTable.innerHTML=rows.length?`<table><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Severity</th><th>Status</th><th>Location</th><th>Repair Cost</th><th>Actions</th></tr>${rows.map(x=>`<tr><td>${esc(x.date||'')}${x.time?' '+esc(x.time):''}</td><td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type||'')}</td><td>${esc(x.severity||'')}</td><td><span class="badge ${x.status==='Completed'?'done':'open'}">${esc(x.status||'')}</span></td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td><button class="primary edit-action" type="button" onclick="editBreakdown('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteBreakdown('${x.id}')">Delete</button></td></tr>`).join('')}</table>`:'<div class="empty">No breakdown records found.</div>';
 }
+function showComplianceTab(tab){
+  const vehicles=document.getElementById('vehicleCompliancePanel'), trailers=document.getElementById('trailerCompliancePanel');
+  const vb=document.getElementById('complianceVehicleTab'), tb=document.getElementById('complianceTrailerTab');
+  if(tab==='trailers'){vehicles.style.display='none';trailers.style.display='block';vb.className='secondary';tb.className='primary';populateTrailerComplianceSelect();}
+  else{vehicles.style.display='block';trailers.style.display='none';vb.className='primary';tb.className='secondary';}
+  renderDocuments();
+}
+function populateTrailerComplianceSelect(){
+  const el=document.getElementById('tdTrailer'); if(!el)return;
+  const current=el.value;
+  el.innerHTML='<option value="">Select trailer...</option>'+(db.trailers||[]).slice().sort((a,b)=>String(a.no||a.reg||'').localeCompare(String(b.no||b.reg||''),undefined,{numeric:true})).map(t=>`<option value="${esc(t.id)}">${esc(t.no||'-')}${t.reg?' — '+esc(t.reg):''}</option>`).join('');
+  if((db.trailers||[]).some(t=>t.id===current))el.value=current;
+}
+function trailerName(id){const t=(db.trailers||[]).find(x=>x.id===id);return t?(t.no||t.reg||'-'):'-';}
+const complianceTypes=['Road Tax','Fitness','Insurance','ZABS Certificate','Electrical Certificate'];
 function addDocument(){
   if(!dVehicle.value)return alert('Select a vehicle.');
-  if(!dIssueDate.value || !dExpiryDate.value)return alert('Enter both issue and expiry dates.');
+  if(!dIssueDate.value||!dExpiryDate.value)return alert('Enter both issue and expiry dates.');
   if(dExpiryDate.value<dIssueDate.value)return alert('Expiry date cannot be before issue date.');
-  db.documents.push({
-    id:crypto.randomUUID(),vehicleId:dVehicle.value,type:dType.value,
-    issueDate:dIssueDate.value,expiryDate:dExpiryDate.value,
-    reminderDays:Number(dReminderDays.value||0),ref:dRef.value.trim(),notes:dNotes.value.trim()
-  });
-  ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>document.getElementById(id).value='');
-  dReminderDays.value=30;
-  save();
+  db.documents=db.documents||[];
+  db.documents.push({id:crypto.randomUUID(),vehicleId:dVehicle.value,type:dType.value,issueDate:dIssueDate.value,expiryDate:dExpiryDate.value,reminderDays:Number(dReminderDays.value||0),ref:dRef.value.trim(),notes:(document.getElementById('dNotes')?.value||'').trim()});
+  ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); dReminderDays.value=30; save();
 }
-function deleteDocument(id){
-  if(confirm('Delete this compliance record?')){db.documents=db.documents.filter(x=>x.id!==id);save();}
+function addTrailerDocument(){
+  if(!tdTrailer.value)return alert('Select a trailer.');
+  if(!tdIssueDate.value||!tdExpiryDate.value)return alert('Enter both issue and expiry dates.');
+  if(tdExpiryDate.value<tdIssueDate.value)return alert('Expiry date cannot be before issue date.');
+  db.trailerDocuments=db.trailerDocuments||[];
+  db.trailerDocuments.push({id:crypto.randomUUID(),trailerId:tdTrailer.value,type:tdType.value,issueDate:tdIssueDate.value,expiryDate:tdExpiryDate.value,reminderDays:Number(tdReminderDays.value||0),ref:tdRef.value.trim(),notes:(document.getElementById('tdNotes')?.value||'').trim()});
+  ['tdIssueDate','tdExpiryDate','tdRef','tdNotes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); tdReminderDays.value=30; save();
 }
+function deleteDocument(id){if(confirm('Delete this compliance record?')){db.documents=(db.documents||[]).filter(x=>x.id!==id);save();}}
+function deleteTrailerDocument(id){if(confirm('Delete this trailer compliance record?')){db.trailerDocuments=(db.trailerDocuments||[]).filter(x=>x.id!==id);save();}}
 function editDocument(id){
- const x=(db.documents||[]).find(d=>d.id===id);if(!x)return;
- const opts=(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===x.vehicleId?'selected':''}>${esc(vehicleNumber(v))}</option>`).join('');
- openUnifiedEdit('document',id,'Edit Compliance Record',`<div class="unified-edit-grid">
-  <div><label>Vehicle</label><select id="ueDocVehicle">${opts}</select></div>
-  <div><label>Document Type</label><input id="ueDocType" value="${esc(x.type||'')}"></div>
-  <div><label>Issue Date</label><input type="date" id="ueDocIssue" value="${esc(x.issueDate||'')}"></div>
-  <div><label>Expiry Date</label><input type="date" id="ueDocExpiry" value="${esc(x.expiryDate||'')}"></div>
-  <div><label>Reminder (days before)</label><input type="number" min="0" id="ueDocReminder" value="${Number(x.reminderDays||0)}"></div>
-  <div><label>Reference / Policy No.</label><input id="ueDocRef" value="${esc(x.ref||'')}"></div>
- </div><div style="margin-top:14px"><label>Notes</label><textarea id="ueDocNotes">${esc(x.notes||'')}</textarea></div>`);
+  const x=(db.documents||[]).find(d=>d.id===id);if(!x)return;
+  const opts=(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===x.vehicleId?'selected':''}>${esc(vehicleNumber(v))}</option>`).join('');
+  const types=complianceTypes.map(t=>`<option ${t===x.type?'selected':''}>${esc(t)}</option>`).join('');
+  openUnifiedEdit('document',id,'Edit Vehicle Compliance Record',`<div class="unified-edit-grid">
+  <div><label>Vehicle</label><select id="ueDocVehicle">${opts}</select></div><div><label>Document Type</label><select id="ueDocType">${types}</select></div>
+  <div><label>Issue Date</label><input type="date" id="ueDocIssue" value="${esc(x.issueDate||'')}"></div><div><label>Expiry / Due Date</label><input type="date" id="ueDocExpiry" value="${esc(x.expiryDate||'')}"></div>
+  <div><label>Reminder (days before)</label><input type="number" min="0" id="ueDocReminder" value="${Number(x.reminderDays||0)}"></div><div><label>Reference / Policy No.</label><input id="ueDocRef" value="${esc(x.ref||'')}"></div>
+  </div><div style="margin-top:14px"><label>Notes</label><textarea id="ueDocNotes">${esc(x.notes||'')}</textarea></div>`);
 }
 function saveDocumentEdit(id){
- const x=(db.documents||[]).find(d=>d.id===id);if(!x)return; const issue=document.getElementById('ueDocIssue').value,expiry=document.getElementById('ueDocExpiry').value;if(expiry<issue)return alert('Expiry date cannot be before issue date.');
- x.vehicleId=document.getElementById('ueDocVehicle').value;x.type=document.getElementById('ueDocType').value.trim();x.issueDate=issue;x.expiryDate=expiry;x.reminderDays=Number(document.getElementById('ueDocReminder').value||0);x.ref=document.getElementById('ueDocRef').value.trim();x.notes=document.getElementById('ueDocNotes').value.trim();closeUnifiedEdit();save();renderDocuments();
+  const x=(db.documents||[]).find(d=>d.id===id);if(!x)return;
+  const issue=document.getElementById('ueDocIssue').value,expiry=document.getElementById('ueDocExpiry').value;
+  if(!issue||!expiry)return alert('Enter both issue and expiry dates.'); if(expiry<issue)return alert('Expiry date cannot be before issue date.');
+  x.vehicleId=document.getElementById('ueDocVehicle').value;x.type=document.getElementById('ueDocType').value;x.issueDate=issue;x.expiryDate=expiry;x.reminderDays=Number(document.getElementById('ueDocReminder').value||0);x.ref=document.getElementById('ueDocRef').value.trim();x.notes=document.getElementById('ueDocNotes').value.trim();closeUnifiedEdit();save();
 }
-
+function editTrailerDocument(id){
+  const x=(db.trailerDocuments||[]).find(d=>d.id===id);if(!x)return;
+  const opts=(db.trailers||[]).map(t=>`<option value="${esc(t.id)}" ${t.id===x.trailerId?'selected':''}>${esc(t.no||t.reg||'-')}${t.reg?' — '+esc(t.reg):''}</option>`).join('');
+  const types=complianceTypes.map(t=>`<option ${t===x.type?'selected':''}>${esc(t)}</option>`).join('');
+  openUnifiedEdit('trailerDocument',id,'Edit Trailer Compliance Record',`<div class="unified-edit-grid">
+  <div><label>Trailer</label><select id="ueTDocTrailer">${opts}</select></div><div><label>Document Type</label><select id="ueTDocType">${types}</select></div>
+  <div><label>Issue Date</label><input type="date" id="ueTDocIssue" value="${esc(x.issueDate||'')}"></div><div><label>Expiry / Due Date</label><input type="date" id="ueTDocExpiry" value="${esc(x.expiryDate||'')}"></div>
+  <div><label>Reminder (days before)</label><input type="number" min="0" id="ueTDocReminder" value="${Number(x.reminderDays||0)}"></div><div><label>Reference / Policy No.</label><input id="ueTDocRef" value="${esc(x.ref||'')}"></div>
+  </div><div style="margin-top:14px"><label>Notes</label><textarea id="ueTDocNotes">${esc(x.notes||'')}</textarea></div>`);
+}
+function saveTrailerDocumentEdit(id){
+  const x=(db.trailerDocuments||[]).find(d=>d.id===id);if(!x)return;
+  const issue=document.getElementById('ueTDocIssue').value,expiry=document.getElementById('ueTDocExpiry').value;
+  if(!issue||!expiry)return alert('Enter both issue and expiry dates.'); if(expiry<issue)return alert('Expiry date cannot be before issue date.');
+  x.trailerId=document.getElementById('ueTDocTrailer').value;x.type=document.getElementById('ueTDocType').value;x.issueDate=issue;x.expiryDate=expiry;x.reminderDays=Number(document.getElementById('ueTDocReminder').value||0);x.ref=document.getElementById('ueTDocRef').value.trim();x.notes=document.getElementById('ueTDocNotes').value.trim();closeUnifiedEdit();save();
+}
 function renderDocuments(){
-  let q=(documentSearch?.value||'').toLowerCase();
-  let rows=db.documents.slice().sort((a,b)=>a.expiryDate.localeCompare(b.expiryDate))
-    .filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
-  documentTable.innerHTML=rows.length?`<table>
-  <tr><th>Vehicle</th><th>Type</th><th>Issue Date</th><th>Expiry Date</th><th>Reminder</th><th>Reference</th><th></th></tr>
-  ${rows.map(x=>{
-    let days=dateDiffDays(x.expiryDate);
-    return `<tr>
-      <td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type)}</td>
-      <td>${esc(x.issueDate)}</td><td>${esc(x.expiryDate)}</td>
-      <td>${reminderBadge(days,x.type)}<br><small>Reminder: ${Number(x.reminderDays||0)} days before</small></td>
-      <td>${esc(x.ref||'-')}<br><small>${esc(x.notes||'')}</small></td>
-      <td><button class="primary edit-action" type="button" onclick="editDocument('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteDocument('${x.id}')">Delete</button></td>
-    </tr>`;
-  }).join('')}</table>`:'<div class="empty">No tax, fitness or insurance records found.</div>';
+  db.documents=db.documents||[];db.trailerDocuments=db.trailerDocuments||[];
+  const q=(document.getElementById('documentSearch')?.value||'').toLowerCase().trim();
+  const vr=db.documents.slice().sort((a,b)=>String(a.expiryDate||'').localeCompare(String(b.expiryDate||''))).filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
+  const tr=db.trailerDocuments.slice().sort((a,b)=>String(a.expiryDate||'').localeCompare(String(b.expiryDate||''))).filter(x=>JSON.stringify({...x,trailer:trailerName(x.trailerId)}).toLowerCase().includes(q));
+  const vt=vr.length?`<table><tr><th>Vehicle</th><th>Type</th><th>Issue Date</th><th>Expiry / Due</th><th>Reminder</th><th>Reference</th><th>Actions</th></tr>${vr.map(x=>{let days=dateDiffDays(x.expiryDate);return `<tr><td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type||'')}</td><td>${esc(x.issueDate||'')}</td><td>${esc(x.expiryDate||'')}</td><td>${reminderBadge(days,x.type)}<br><small>Reminder: ${Number(x.reminderDays||0)} days before</small></td><td>${esc(x.ref||'-')}<br><small>${esc(x.notes||'')}</small></td><td><button class="primary edit-action" type="button" onclick="editDocument('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteDocument('${x.id}')">Delete</button></td></tr>`}).join('')}</table>`:'<div class="empty">No vehicle compliance records found.</div>';
+  const tt=tr.length?`<table><tr><th>Trailer</th><th>Type</th><th>Issue Date</th><th>Expiry / Due</th><th>Reminder</th><th>Reference</th><th>Actions</th></tr>${tr.map(x=>{let days=dateDiffDays(x.expiryDate);return `<tr><td><b>${esc(trailerName(x.trailerId))}</b></td><td>${esc(x.type||'')}</td><td>${esc(x.issueDate||'')}</td><td>${esc(x.expiryDate||'')}</td><td>${reminderBadge(days,x.type)}<br><small>Reminder: ${Number(x.reminderDays||0)} days before</small></td><td>${esc(x.ref||'-')}<br><small>${esc(x.notes||'')}</small></td><td><button class="primary edit-action" type="button" onclick="editTrailerDocument('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteTrailerDocument('${x.id}')">Delete</button></td></tr>`}).join('')}</table>`:'<div class="empty">No trailer compliance records found.</div>';
+  documentTable.innerHTML=`<div class="compliance-results-block"><h3>Vehicle Compliance (${vr.length})</h3>${vt}</div><div class="compliance-results-block" style="margin-top:24px"><h3>Trailer Compliance (${tr.length})</h3>${tt}</div>`;
 }
 function collectReminders(){
   const out=[];
-  db.documents.forEach(x=>{
-    const days=dateDiffDays(x.expiryDate), n=Number(x.reminderDays||0);
-    if(days!==null && days<=n) out.push({
-      date:x.expiryDate, days, title:`${x.type} — ${vname(x.vehicleId)}`,
-      text:days<0?`${Math.abs(days)} day(s) overdue`:(days===0?'Due today':`Expires in ${days} day(s)`)
-    });
-  });
-  return out.sort((a,b)=>(a.kmRemaining??Infinity)-(b.kmRemaining??Infinity));
+  (db.documents||[]).forEach(x=>{const days=dateDiffDays(x.expiryDate),n=Number(x.reminderDays||0);if(days!==null&&days<=n)out.push({date:x.expiryDate,days,title:`${x.type} — ${vname(x.vehicleId)}`,text:days<0?`${Math.abs(days)} day(s) overdue`:(days===0?'Due today':`Expires in ${days} day(s)`)})});
+  (db.trailerDocuments||[]).forEach(x=>{const days=dateDiffDays(x.expiryDate),n=Number(x.reminderDays||0);if(days!==null&&days<=n)out.push({date:x.expiryDate,days,title:`${x.type} — Trailer ${trailerName(x.trailerId)}`,text:days<0?`${Math.abs(days)} day(s) overdue`:(days===0?'Due today':`Expires in ${days} day(s)`)})});
+  return out.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
 }
+
 function renderReminders(){
   const rows=collectReminders();
   reminders.innerHTML=rows.length?rows.slice(0,15).map(r=>{
@@ -1885,9 +1918,9 @@ function printReport(){
  setTimeout(()=>document.getElementById('reports').classList.remove('printing'),500);
 }
 function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Oasis-Oil-Backup-'+today()+'.json';a.click();URL.revokeObjectURL(a.href)}
-function importData(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.vehicles||!x.jobs||!x.expenses)throw Error();x.services=Array.isArray(x.services)?x.services:[];x.breakdowns=Array.isArray(x.breakdowns)?x.breakdowns:[];x.documents=Array.isArray(x.documents)?x.documents:[];x.drivers=Array.isArray(x.drivers)?x.drivers:[];db=x;ensureDbShape();save();alert('Backup restored.')}catch(e){alert('Invalid Oasis backup file.')}};r.readAsText(f)}
+function importData(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.vehicles||!x.jobs||!x.expenses)throw Error();x.services=Array.isArray(x.services)?x.services:[];x.breakdowns=Array.isArray(x.breakdowns)?x.breakdowns:[];x.documents=Array.isArray(x.documents)?x.documents:[];x.trailerDocuments=Array.isArray(x.trailerDocuments)?x.trailerDocuments:[];x.drivers=Array.isArray(x.drivers)?x.drivers:[];db=x;ensureDbShape();save();alert('Backup restored.')}catch(e){alert('Invalid Oasis backup file.')}};r.readAsText(f)}
 jDate.value=today();eDate.value=today();
-sDate.value=today();bDate.value=today();dIssueDate.value=today();
+sDate.value=today();bDate.value=today();dIssueDate.value=today();tdIssueDate.value=today();
 function updateClock(){
   const now=new Date();
   document.getElementById('clock').textContent=now.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'});
@@ -2621,7 +2654,7 @@ try{renderVehicles();renderTrailers();}catch(e){}
 <script>
 function openUnifiedEdit(type,id,title,body){const m=document.getElementById('unifiedEditModal');document.getElementById('unifiedEditType').value=type;document.getElementById('unifiedEditId').value=id;document.getElementById('unifiedEditTitle').textContent=title;document.getElementById('unifiedEditBody').innerHTML=body;m.classList.add('show');m.setAttribute('aria-hidden','false');}
 function closeUnifiedEdit(){const m=document.getElementById('unifiedEditModal');if(!m)return;m.classList.remove('show');m.setAttribute('aria-hidden','true');}
-function saveUnifiedEdit(){const type=document.getElementById('unifiedEditType').value,id=document.getElementById('unifiedEditId').value;if(type==='vehicle')saveVehicleEdit(id);else if(type==='driver')saveDriverModal(id);else if(type==='trailer')saveTrailerInline(id);else if(type==='breakdown')saveBreakdownEdit(id);else if(type==='document')saveDocumentEdit(id);}
+function saveUnifiedEdit(){const type=document.getElementById('unifiedEditType').value,id=document.getElementById('unifiedEditId').value;if(type==='vehicle')saveVehicleEdit(id);else if(type==='driver')saveDriverModal(id);else if(type==='trailer')saveTrailerInline(id);else if(type==='breakdown')saveBreakdownEdit(id);else if(type==='document')saveDocumentEdit(id);else if(type==='trailerDocument')saveTrailerDocumentEdit(id);}
 function editDriver(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)return;const opts='<option value="">— Unassigned —</option>'+(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===d.vehicleId?'selected':''}>${esc(vehicleNumber(v))}</option>`).join('');openUnifiedEdit('driver',id,'Edit Driver',`<div class="unified-edit-grid"><div><label>Driver Name</label><input id="ueDriverName" value="${esc(d.name||'')}"></div><div><label>Phone Number</label><input id="ueDriverPhone" value="${esc(d.phone||'')}"></div><div><label>Assigned Vehicle</label><select id="ueDriverVehicle">${opts}</select></div></div>`);}
 function saveDriverModal(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)return;d.name=document.getElementById('ueDriverName').value.trim();d.phone=document.getElementById('ueDriverPhone').value.trim();const vid=document.getElementById('ueDriverVehicle').value;(db.drivers||[]).forEach(x=>{if(x.id!==id&&x.vehicleId===vid&&vid)x.vehicleId='';});d.vehicleId=vid||'';closeUnifiedEdit();persistDb();renderDrivers();renderVehicles();}
 </script>
