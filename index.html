@@ -76,12 +76,7 @@ html[data-theme="dark"] body{background:radial-gradient(circle at 10% 0%,rgba(79
 html[data-theme="dark"] nav{background:rgba(13,19,32,.88);border-color:var(--line)}html[data-theme="dark"] nav button{color:#aeb9ca}html[data-theme="dark"] nav button:hover{background:#182237}html[data-theme="dark"] nav button.active{background:linear-gradient(135deg,#1a2a4a,#241e43);color:#a9bcff}
 html[data-theme="dark"] .panel,html[data-theme="dark"] .card{background:rgba(17,24,39,.92);border-color:var(--line)}html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="dark"] textarea{background:#0d1524;color:var(--text);border-color:#2a3850}html[data-theme="dark"] label{color:#b8c3d4}html[data-theme="dark"] .secondary{background:#182132;color:#e8eef8;border-color:#2a3850}html[data-theme="dark"] th{background:#172033;color:#aeb9ca}html[data-theme="dark"] tbody tr:hover td{background:#131e31}html[data-theme="dark"] td,html[data-theme="dark"] th{border-color:var(--line)}html[data-theme="dark"] .vehicle-picker-list{background:#111827;border-color:#2a3850}html[data-theme="dark"] .vehicle-picker-option{background:#111827;color:#eef3fb}html[data-theme="dark"] .vehicle-picker-option:hover{background:#1a2740}html[data-theme="dark"] .vehicle-picker-option.selected{background:#182237}html[data-theme="dark"] .modalbox{background:#111827;border-color:#2a3850}html[data-theme="dark"] #notificationBell{background:#111827!important;color:#fff;border-color:#2a3850}html[data-theme="dark"] #notificationPanel{background:#111827!important;color:#eef3fb}html[data-theme="dark"] #notificationPanel button{color:#eef3fb;background:#182132;border:1px solid #2a3850;border-radius:9px;padding:7px 10px}html[data-theme="dark"] .report-company,html[data-theme="dark"] h1,html[data-theme="dark"] h2{color:#eef3fb}
 @media(max-width:700px){header{padding:12px 14px}nav{top:64px}main{padding:18px 12px}.panel{padding:15px;border-radius:15px}.theme-toggle span{display:none}.theme-toggle{padding:9px 10px}.brand{font-size:18px}}
-
-.dashboard-link-card{cursor:pointer;position:relative;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
-.dashboard-link-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(15,23,42,.10)}
-.dashboard-link-card:focus-visible{outline:3px solid rgba(79,70,229,.28);outline-offset:2px}
-.dashboard-link-hint{font-size:.78rem;font-weight:700;color:#64748b;margin-top:7px;opacity:.9}
-.compliance-results-block{overflow-x:auto}.compliance-results-block h3{margin:0 0 10px;font-weight:800}</style>
+</style>
 
 <style>
 #clock{
@@ -267,10 +262,10 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <section id="dashboard" class="view active">
 <h1>Workshop Dashboard</h1><p class="sub">Track vehicles, job cards, repairs and expenses in one place.</p>
 <div class="cards">
-<div class="card dashboard-link-card" data-dashboard-view="vehicles" role="button" tabindex="0" title="Open Vehicles"><div class="label">Vehicles</div><div class="metric" id="mVehicles">0</div><div class="dashboard-link-hint">Open Vehicles →</div></div>
-<div class="card dashboard-link-card" data-dashboard-view="jobs" data-job-status="Open" role="button" tabindex="0" title="Open Job Cards"><div class="label">Open Job Cards</div><div class="metric" id="mOpen">0</div><div class="dashboard-link-hint">Open Job Cards →</div></div>
-<div class="card dashboard-link-card" data-dashboard-view="jobs" data-job-status="Completed" role="button" tabindex="0" title="Open Completed Job Cards"><div class="label">Completed Jobs</div><div class="metric" id="mDone">0</div><div class="dashboard-link-hint">Open Completed Jobs →</div></div>
-<div class="card dashboard-link-card" data-dashboard-view="expenses" role="button" tabindex="0" title="Open Expenses"><div class="label">Total Expenses</div><div class="metric" id="mExpense">K0</div><div class="dashboard-link-hint">Open Expenses →</div></div>
+<div class="card"><div class="label">Vehicles</div><div class="metric" id="mVehicles">0</div></div>
+<div class="card"><div class="label">Open Job Cards</div><div class="metric" id="mOpen">0</div></div>
+<div class="card"><div class="label">Completed Jobs</div><div class="metric" id="mDone">0</div></div>
+<div class="card"><div class="label">Total Expenses</div><div class="metric" id="mExpense">K0</div></div>
 </div>
 <div class="panel"><h2>Recent Job Cards</h2><div id="recentJobs"></div></div>
 <div class="panel"><h2>Upcoming Reminders</h2><div id="reminders"></div></div>
@@ -477,56 +472,43 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 </section>
 
 <section id="documents" class="view">
-<h1>Tax, Fitness &amp; Insurance</h1>
-<p class="sub">Manage compliance records for both vehicles and trailers, including road tax, fitness, insurance, ZABS certificates and electrical certificates.</p>
+<h1>Tax, Fitness & Insurance</h1>
+<p class="sub">Store issue and expiry dates for every vehicle and choose how many days before expiry you want the automatic reminder.</p>
+
 <div class="panel">
-  <div class="actions" style="margin-bottom:16px">
-    <button type="button" class="primary" id="complianceVehicleTab" onclick="showComplianceTab('vehicles')">Vehicles</button>
-    <button type="button" class="secondary" id="complianceTrailerTab" onclick="showComplianceTab('trailers')">Trailers</button>
-  </div>
-  <div id="vehicleCompliancePanel">
-    <h2>Add Vehicle Compliance Record</h2>
-    <div class="grid3">
-      <div><label>Vehicle</label><div class="vehicle-picker" id="dVehiclePicker">
-        <input id="dVehicleSearch" placeholder="Search or select vehicle..." autocomplete="off" onfocus="openVehiclePicker('dVehicle')" oninput="renderVehiclePicker('dVehicle')">
-        <input type="hidden" id="dVehicle"><div class="vehicle-picker-list" id="dVehicleList"></div>
-      </div></div>
-      <div><label>Document Type</label><select id="dType">
-        <option>Road Tax</option><option>Fitness</option><option>Insurance</option>
-        <option>ZABS Certificate</option><option>Electrical Certificate</option>
-      </select></div>
-      <div><label>Issue Date</label><input type="date" id="dIssueDate"></div>
-    </div>
-    <div class="grid3" style="margin-top:12px">
-      <div><label>Expiry / Due Date</label><input type="date" id="dExpiryDate"></div>
-      <div><label>Remind Me Before (days)</label><input type="number" min="0" id="dReminderDays" value="30"></div>
-      <div><label>Reference / Policy No.</label><input id="dRef" placeholder="Optional"></div>
-    </div>
-    <div style="margin-top:12px"><label>Notes</label><textarea id="dNotes" placeholder="Optional notes"></textarea></div>
-    <div class="actions"><button class="primary" onclick="addDocument()">Save Vehicle Record</button></div>
-  </div>
-  <div id="trailerCompliancePanel" style="display:none">
-    <h2>Add Trailer Compliance Record</h2>
-    <div class="grid3">
-      <div><label>Trailer</label><select id="tdTrailer"><option value="">Select trailer...</option></select></div>
-      <div><label>Document Type</label><select id="tdType">
-        <option>Road Tax</option><option>Fitness</option><option>Insurance</option>
-        <option>ZABS Certificate</option><option>Electrical Certificate</option>
-      </select></div>
-      <div><label>Issue Date</label><input type="date" id="tdIssueDate"></div>
-    </div>
-    <div class="grid3" style="margin-top:12px">
-      <div><label>Expiry / Due Date</label><input type="date" id="tdExpiryDate"></div>
-      <div><label>Remind Me Before (days)</label><input type="number" min="0" id="tdReminderDays" value="30"></div>
-      <div><label>Reference / Policy No.</label><input id="tdRef" placeholder="Optional"></div>
-    </div>
-    <div style="margin-top:12px"><label>Notes</label><textarea id="tdNotes" placeholder="Optional notes"></textarea></div>
-    <div class="actions"><button class="primary" onclick="addTrailerDocument()">Save Trailer Record</button></div>
+<h2>Add Compliance Record</h2>
+<div class="grid3">
+<div><label>Vehicle</label>
+  <div class="vehicle-picker" id="dVehiclePicker">
+    <input id="dVehicleSearch" placeholder="Search or select vehicle..." autocomplete="off"
+           onfocus="openVehiclePicker('dVehicle')" oninput="renderVehiclePicker('dVehicle')">
+    <input type="hidden" id="dVehicle">
+    <div class="vehicle-picker-list" id="dVehicleList"></div>
   </div>
 </div>
+<div><label>Document Type</label>
+<select id="dType">
+<option>Road Tax</option>
+<option>Fitness</option>
+<option>Insurance</option></select>
+</div>
+<div><label>Issue Date</label><input type="date" id="dIssueDate"></div>
+</div>
+
+<div class="grid3" style="margin-top:12px">
+<div><label>Expiry Date</label><input type="date" id="dExpiryDate"></div>
+<div><label>Remind Me Before (days)</label><input type="number" min="0" id="dReminderDays" value="15"></div>
+<div><label>Reference / Policy No.</label><input id="dRef" placeholder="Optional"></div>
+</div>
+
+<div class="actions"><button class="primary" onclick="addDocument()">Save Record</button></div>
+</div>
+
 <div class="panel">
-  <div class="actions no-print"><input class="search" id="documentSearch" placeholder="Search tax, fitness, insurance or certificates..." oninput="renderDocuments()"></div>
-  <div id="documentTable"></div>
+<div class="actions no-print">
+<input class="search" id="documentSearch" placeholder="Search tax, fitness or insurance..." oninput="renderDocuments()">
+</div>
+<div id="documentTable"></div>
 </div>
 </section>
 
@@ -651,7 +633,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 
 <script>
 const KEY='oasisOilFleet_v1';
-let db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[],trailerDocuments:[]};
+let db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[]};
 let cloudClient=null,cloudChannel=null,cloudSaveTimer=null,cloudBusy=false,cloudRetryTimer=null,cloudReady=false;
 const CLOUD_URL_KEY='https://vkefsqhzrldtirlohthv.supabase.co';
 
@@ -723,6 +705,7 @@ async function pullCloud(){
     if(hasRemote){
       db=remote;
       ensureDbShape();
+      seedRoadTax2027();
       const importedChanged=mergeImportedServiceHistory();
       localStorage.setItem(KEY,JSON.stringify(db));
       if(importedChanged){
@@ -738,7 +721,7 @@ async function pullCloud(){
         {onConflict:'id'}
       );
     }else{
-      db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[],trailerDocuments:[]};
+      db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[]};
       localStorage.setItem(KEY,JSON.stringify(db));
       await cloudClient.from('fleet_data').upsert(
         {id:'company',data:db,updated_at:new Date().toISOString()},
@@ -965,7 +948,118 @@ COMPANY_HORSES.forEach(h=>{
 const COMPANY_TRAILERS=[{"no":"BAV-7070","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAV-7076","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAV-7083","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAV-7081","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAV-7224","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAV-7073","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAV-7097","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAV-7074","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAV-7086","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAV-7994","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BLB-3387","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAT-7978","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"ARB - 1977","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BLB-3385","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAK-3676","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"ALV - 9207","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"RIGID","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"TATA CANTER","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAZ-4663","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAZ-4664","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAZ-4710","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAZ-4660","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAZ-4326","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAZ-4327","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BLB-3386","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAZ-4328","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAZ-4661","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BLB-3418","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAZ-5057","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAZ-4329","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAA-8070","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAA-8067","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"ALC-445","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAT-7976","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAT-8255","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8536 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8531 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8527 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8481 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8530 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8525 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8522 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8513 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8523 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8515 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8516 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8517 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8648ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8524 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAF-8521 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-4321 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-4201 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-4205 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-4326 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-4198 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-4195 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-4191 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-4192 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-4189 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-4323 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BAZ-5057 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAK-3677ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-7194 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-7179 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-7178 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-7186 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-7176 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-7172 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-7177 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-7197 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-7175 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAJ-7181 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAK-3675 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAK-3678 ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAM-169ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAM-168ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"BLB-3386ZM","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"SPARE HOSE","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"15-TON (CONSTRUCTION)","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"CAE-8407 (30 TON CONSTRUCTION)","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"10-TON (CONSTRUCTION)","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"JCB (CONSTRUCTION)","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"},{"no":"TIPPER (CONSTRUCTION)","reg":"","type":"Tanker","description":"Imported from OASIS ALL BIG VEHICLES.xlsx"}];
 const COMPANY_TRAILER_PAIRS=[{"horseNo":"OAS-001","horseReg":"BAV-7007","trailerNo":"BAV-7070"},{"horseNo":"OAS-002","horseReg":"BAV-7107","trailerNo":"BAV-7076"},{"horseNo":"OAS-004","horseReg":"BAV-7005","trailerNo":"BAV-7083"},{"horseNo":"OAS-005","horseReg":"BAV-7223","trailerNo":"BAV-7081"},{"horseNo":"OAS-006","horseReg":"BAV-7104","trailerNo":"BAV-7224"},{"horseNo":"OAS-007","horseReg":"BAV-7130","trailerNo":"BAV-7073"},{"horseNo":"OAS-008","horseReg":"BAV-7225","trailerNo":"BAV-7097"},{"horseNo":"OAS-009","horseReg":"BAV-7006","trailerNo":"BAV-7074"},{"horseNo":"OAS-010","horseReg":"BAV-7106","trailerNo":"BAV-7086"},{"horseNo":"OAS-011","horseReg":"BAV-7992","trailerNo":"BAV-7994"},{"horseNo":"OAS-013","horseReg":"BAZ-4765","trailerNo":"BLB-3387"},{"horseNo":"OAS-014","horseReg":"CAD-794","trailerNo":"BAT-7978"},{"horseNo":"OAS-015","horseReg":"BAZ-4325","trailerNo":"ARB - 1977"},{"horseNo":"OAS-016","horseReg":"BAZ-3646","trailerNo":"BLB-3385"},{"horseNo":"OAS-017","horseReg":"BAZ-4105","trailerNo":"CAK-3676"},{"horseNo":"OAS-018","horseReg":"BAZ-4107","trailerNo":"ALV - 9207"},{"horseNo":"OAS-019","horseReg":"CAF-5946","trailerNo":"RIGID"},{"horseNo":"OAS-020","horseReg":"CAF-5947","trailerNo":"RIGID"},{"horseNo":"OAS-021","horseReg":"BCD-6943","trailerNo":"TATA CANTER"},{"horseNo":"OAS-022","horseReg":"BAZ-4162","trailerNo":"BAZ-4663"},{"horseNo":"OAS-023","horseReg":"BAZ-5137","trailerNo":"BAZ-4664"},{"horseNo":"OAS-024","horseReg":"BAZ-4046","trailerNo":"BAZ-4710"},{"horseNo":"OAS-025","horseReg":"BAZ-4052","trailerNo":"BAZ-4660"},{"horseNo":"OAS-026","horseReg":"BAZ-4106","trailerNo":"BAZ-4326"},{"horseNo":"OAS-027","horseReg":"BAZ-4123","trailerNo":"BAZ-4327"},{"horseNo":"OAS-028","horseReg":"BAZ-3644","trailerNo":"BLB-3386"},{"horseNo":"OAS-029","horseReg":"BAZ-3931","trailerNo":"BAZ-4328"},{"horseNo":"OAS-030","horseReg":"BAZ-4047","trailerNo":"BAZ-4661"},{"horseNo":"OAS-031","horseReg":"BAZ-3917","trailerNo":"BLB-3385"},{"horseNo":"OAS-032","horseReg":"BAZ-3647","trailerNo":"BLB-3418"},{"horseNo":"OAS-033","horseReg":"BAZ-3645","trailerNo":"BLB-3387"},{"horseNo":"OAS-034","horseReg":"BAZ-3919","trailerNo":"BAZ-5057"},{"horseNo":"OAS-035","horseReg":"BAZ-3920","trailerNo":"BAZ-4329"},{"horseNo":"OAS-038","horseReg":"CAA-8068","trailerNo":"CAA-8070"},{"horseNo":"OAS-039","horseReg":"CAA-8073","trailerNo":"CAA-8067"},{"horseNo":"OAS-040","horseReg":"CAD-795","trailerNo":"ALC-445"},{"horseNo":"OAS-041","horseReg":"CAE-6766","trailerNo":"BAT-7976"},{"horseNo":"OAS-042","horseReg":"CAE-6768","trailerNo":"BAT-8255"},{"horseNo":"0AS-044","horseReg":"CAF-8474 ZM","trailerNo":"CAF-8536 ZM"},{"horseNo":"0AS-045","horseReg":"CAF-8480 ZM","trailerNo":"CAF-8531 ZM"},{"horseNo":"0AS-046","horseReg":"CAF-8482 ZM","trailerNo":"CAF-8527 ZM"},{"horseNo":"0AS-047","horseReg":"CAF-8483 ZM","trailerNo":"CAF-8481 ZM"},{"horseNo":"0AS-048","horseReg":"CAF-8484 ZM","trailerNo":"CAF-8530 ZM"},{"horseNo":"0AS-049","horseReg":"CAF-8485 ZM","trailerNo":"CAF-8525 ZM"},{"horseNo":"0AS-050","horseReg":"CAF-8514 ZM","trailerNo":"CAF-8522 ZM"},{"horseNo":"0AS-051","horseReg":"CAF-8518 ZM","trailerNo":"CAF-8513 ZM"},{"horseNo":"0AS-052","horseReg":"CAF-8520 ZM","trailerNo":"CAF-8523 ZM"},{"horseNo":"0AS-053","horseReg":"CAF-8526 ZM","trailerNo":"CAF-8515 ZM"},{"horseNo":"0AS-054","horseReg":"CAF-8528 ZM","trailerNo":"CAF-8516 ZM"},{"horseNo":"0AS-055","horseReg":"CAF-8529 ZM","trailerNo":"CAF-8517 ZM"},{"horseNo":"0AS-056","horseReg":"CAF-8532 ZM","trailerNo":"CAF-8648ZM"},{"horseNo":"0AS-057","horseReg":"CAF-8533 ZM","trailerNo":"CAF-8524 ZM"},{"horseNo":"0AS-058","horseReg":"CAF-8647 ZM","trailerNo":"CAF-8521 ZM"},{"horseNo":"0AS-059","horseReg":"CAF-8519 ZM","trailerNo":"RIGID"},{"horseNo":"0AS-060","horseReg":"CAJ-4325 ZM","trailerNo":"CAJ-4321 ZM"},{"horseNo":"0AS-061","horseReg":"CAJ-4202 ZM","trailerNo":"CAJ-4201 ZM"},{"horseNo":"0AS-062","horseReg":"CAJ-4203 ZM","trailerNo":"CAJ-4205 ZM"},{"horseNo":"0AS-063","horseReg":"CAJ-4324 ZM","trailerNo":"CAJ-4326 ZM"},{"horseNo":"0AS-064","horseReg":"CAJ-4197 ZM","trailerNo":"CAJ-4198 ZM"},{"horseNo":"0AS-065","horseReg":"CAJ-4204 ZM","trailerNo":"CAJ-4195 ZM"},{"horseNo":"0AS-066","horseReg":"CAJ-4194 ZM","trailerNo":"CAJ-4191 ZM"},{"horseNo":"0AS-067","horseReg":"CAJ-4200 ZM","trailerNo":"CAJ-4192 ZM"},{"horseNo":"0AS-068","horseReg":"CAJ-4196 ZM","trailerNo":"CAJ-4189 ZM"},{"horseNo":"0AS-069","horseReg":"CAJ-4322 ZM","trailerNo":"CAJ-4323 ZM"},{"horseNo":"0AS-070","horseReg":"CAJ-4193 ZM","trailerNo":"BAZ-5057 ZM"},{"horseNo":"0AS-071","horseReg":"CAJ-4190 ZM","trailerNo":"CAK-3677ZM"},{"horseNo":"0AS-072","horseReg":"CAJ-7195 ZM","trailerNo":"CAJ-7194 ZM"},{"horseNo":"0AS-073","horseReg":"CAJ-7191 ZM","trailerNo":"CAJ-7179 ZM"},{"horseNo":"0AS-074","horseReg":"CAJ-7188 ZM","trailerNo":"CAJ-7178 ZM"},{"horseNo":"0AS-075","horseReg":"CAJ-7173 ZM","trailerNo":"CAJ-7186 ZM"},{"horseNo":"0AS-076","horseReg":"CAJ-7187 ZM","trailerNo":"CAJ-7176 ZM"},{"horseNo":"0AS-077","horseReg":"CAJ-7174 ZM","trailerNo":"CAJ-7172 ZM"},{"horseNo":"0AS-078","horseReg":"CAJ-7198 ZM","trailerNo":"CAJ-7177 ZM"},{"horseNo":"0AS-079","horseReg":"CAJ-7193 ZM","trailerNo":"CAJ-7197 ZM"},{"horseNo":"0AS-080","horseReg":"CAJ-7192 ZM","trailerNo":"CAJ-7175 ZM"},{"horseNo":"0AS-081","horseReg":"CAJ-7189 ZM","trailerNo":"CAJ-7181 ZM"},{"horseNo":"0AS-082","horseReg":"CAK-3685 ZM","trailerNo":"CAK-3675 ZM"},{"horseNo":"0AS-083","horseReg":"CAK-4865 ZM","trailerNo":"CAK-3678 ZM"},{"horseNo":"0AS-085","horseReg":"CAL-9305ZM","trailerNo":"CAM-169ZM"},{"horseNo":"0AS-086","horseReg":"CAL-9316ZM","trailerNo":"CAM-168ZM"},{"horseNo":"OAS-087","horseReg":"CAL-9318ZM","trailerNo":"BLB-3386ZM"},{"horseNo":"OAS-088","horseReg":"CAM-344ZM","trailerNo":"SPARE HOSE"},{"horseNo":"UNASSIGNED - BAV-6643","horseReg":"BAV-6643","trailerNo":"15-TON (CONSTRUCTION)"},{"horseNo":"UNASSIGNED - CAL-9306","horseReg":"CAL-9306","trailerNo":"CAE-8407 (30 TON CONSTRUCTION)"},{"horseNo":"UNASSIGNED - BCH-8440","horseReg":"BCH-8440","trailerNo":"10-TON (CONSTRUCTION)"},{"horseNo":"UNASSIGNED - BAZ-4711","horseReg":"BAZ-4711","trailerNo":"JCB (CONSTRUCTION)"},{"horseNo":"OAS-037","horseReg":"CAA-6283","trailerNo":"TIPPER (CONSTRUCTION)"},{"horseNo":"UNASSIGNED - CAM-3115","horseReg":"CAM-3115","trailerNo":"TIPPER (CONSTRUCTION)"},{"horseNo":"UNASSIGNED - CAM-3120","horseReg":"CAM-3120","trailerNo":"TIPPER (CONSTRUCTION)"}];
 
+// 2027 RTSA Road Tax certificate import from the supplied PDF batches.
+const ROAD_TAX_2027_IMPORT=[
+["BAV7083ZM","2027-06-06","2027-03-04","2027-07-31","2026-06-16"],
+["BAZ4660ZM","2027-06-15","2027-01-04","2027-07-31","2026-06-16"],
+["BAZ4327ZM","2027-06-12","2027-01-08","2027-07-31","2026-06-16"],
+["BAZ4326ZM","2027-06-12","2027-01-01","2027-07-31","2026-06-16"],
+["BAZ5057ZM","2027-06-21","2027-01-07","2027-07-31","2026-06-16"],
+["BAZ4329ZM","2027-06-12","2026-12-30","2027-07-31","2026-06-16"],
+["BLB3418ZM","2027-06-01","2027-01-13","2027-07-31","2026-06-16"],
+["BLB3386ZM","2027-06-01","2027-01-06","2027-07-31","2026-06-16"],
+["CAA8070ZM","2027-04-10","2026-09-28","2027-07-31","2026-06-16"],
+["BAV7074ZM","2027-06-06","2027-03-22","2027-07-31","2026-06-16"],
+["BAV7076ZM","2027-04-10","2027-02-19","2027-07-31","2026-06-16"],
+["CAA8068ZM","2027-04-10","2026-08-25","2027-07-31","2026-06-16"],
+["BAZ4123ZM","2027-06-08","2027-01-08","2027-07-31","2026-06-16"],
+["BAZ3644ZM","2027-06-01","2027-01-06","2027-07-31","2026-06-16"],
+["BAZ3917ZM","2027-06-06","2026-12-17","2027-07-31","2026-06-16"],
+["BAZ3647ZM","2027-06-01","2027-01-13","2027-07-31","2026-06-16"],
+["BAZ3920ZM","2027-06-06","2027-01-19","2027-07-31","2026-06-16"],
+["BAZ3919ZM","2027-06-06","2027-01-07","2027-07-31","2026-06-16"],
+["BAZ3931ZM","2027-06-06","2027-01-06","2027-07-31","2026-06-16"],
+["BAZ4046ZM","2027-04-07","2027-01-13","2027-07-31","2026-06-16"],
+["BAV7073ZM","2027-06-06","2027-06-04","2027-07-31","2026-06-15"],
+["BAV7130ZM","2027-06-06","2027-06-04","2027-07-31","2026-06-15"],
+["CAF5946ZM","2027-05-24","2026-11-25","2027-07-31","2026-06-17"],
+["CAF8484ZM","2027-06-26","2027-01-01","2027-07-31","2026-06-17"],
+["CAF8483ZM","2027-06-26","2026-12-30","2027-07-31","2026-06-17"],
+["CAF8482ZM","2027-06-26","2027-01-07","2027-07-31","2026-06-17"],
+["ALD7142","2027-10-15","2027-02-25","2027-07-31","2026-06-17"],
+["CAF8480ZM","2027-06-26","2027-01-14","2027-07-31","2026-06-17"],
+["CAF8474ZM","2027-03-26","2027-01-07","2027-07-31","2026-06-17"],
+["CAF8485ZM","2027-06-29","2027-01-04","2027-07-31","2026-06-17"],
+["CAF8514ZM","2027-06-26","2026-12-30","2027-07-31","2026-06-17"],
+["CAF8518ZM","2027-06-26","2027-01-01","2027-07-31","2026-06-17"],
+["CAF8530ZM","2026-12-26","2027-01-01","2027-01-26","2026-06-17"],
+["CAF8525ZM","2027-06-26","2027-01-04","2027-07-31","2026-06-17"],
+["CAF8522ZM","2027-06-26","2026-12-30","2027-07-31","2026-06-17"],
+["CAF8513ZM","2027-06-26","2027-01-01","2027-07-31","2026-06-17"],
+["CAF8536ZM","2027-06-26","2027-01-01","2027-07-31","2026-06-17"],
+["CAF8531ZM","2027-06-26","2027-01-14","2027-07-31","2026-06-17"],
+["CAF8527ZM","2027-06-26","2027-01-07","2027-07-31","2026-06-17"],
+["CAF8481ZM","2027-06-26","2026-12-30","2027-07-31","2026-06-17"],
+["BAV7005ZM","2027-06-03","2027-03-04","2027-07-31","2026-06-17"],
+["BAB3268","2027-05-03","2027-02-18","2027-07-31","2026-06-23"],
+["ALB1586","2027-05-10","2027-02-23","2027-07-31","2026-06-23"],
+["CAC9868ZM","2027-02-27","2026-11-16","2027-07-31","2026-06-23"],
+["CAE5910ZM","2027-04-16","2026-07-16","2027-07-31","2026-06-23"],
+["BAT6390ZM","2027-06-12","2026-08-28","2027-07-31","2026-06-23"],
+["BAT8862ZM","2027-04-25","2026-11-12","2027-07-31","2026-06-23"],
+["BAT8655ZM","2027-04-20","2026-11-13","2027-07-31","2026-06-23"],
+["ARB4777ZM","2027-01-27","2027-02-26","2027-05-15","2026-06-23"],
+["ALX1540","2027-03-16","2026-08-19","2027-07-31","2026-06-23"],
+["BAZ6037ZM","2027-04-08","2027-03-03","2027-07-31","2026-06-23"],
+["BAT4356ZM","2027-05-02","2026-09-22","2027-07-31","2026-06-23"],
+["ALR7292","2027-06-03","2026-12-10","2027-07-31","2026-06-23"],
+["BAZ4710ZM","2027-06-18","2027-01-13","2027-07-31","2026-06-23"],
+["BAV7006ZM","2027-06-02","2027-03-22","2027-07-31","2026-06-23"],
+["BAV7107ZM","2027-06-06","2027-02-19","2027-07-31","2026-06-23"],
+["BAZ4106ZM","2027-06-08","2027-01-01","2027-07-31","2026-06-23"],
+["BAJ7174ZM","2027-04-25","2027-02-03","2027-07-31","2026-06-23"],
+["CAF5947ZM","2027-05-24","2026-11-25","2027-07-31","2026-06-18"],
+["CAF8521ZM","2027-06-26","2027-01-06","2027-07-31","2026-06-18"],
+["ARB1977T","2027-06-29","2027-01-27","2027-06-30","2026-06-18"],
+["CAF8516ZM","2027-06-26","2027-01-06","2027-07-31","2026-06-18"],
+["CAF8515ZM","2027-06-26","2027-01-14","2027-07-31","2026-06-18"],
+["CAF8523ZM","2027-06-26","2026-12-30","2027-07-31","2026-06-18"],
+["CAF8648ZM","2027-04-01","2026-12-30","2027-06-30","2026-06-18"],
+["ALC445T","2027-06-07","2026-09-30","2027-07-31","2026-06-18"],
+["BBA4927ZM","2027-06-24","2026-10-12","2027-07-31","2026-06-18"],
+["CAF8524ZM","2027-06-26","2026-12-30","2027-07-31","2026-06-18"],
+["CAF8517ZM","2027-06-26","2026-12-30","2027-07-31","2026-06-18"],
+["BAZ4107ZM","2027-06-08","2026-12-25","2027-07-31","2026-06-18"],
+["CAE6766ZM","2027-04-28","2026-07-27","2027-07-31","2026-06-18"],
+["CAE6768ZM","2027-04-28","2026-07-27","2027-07-31","2026-06-18"],
+["CAF8647ZM","2027-04-01","2027-01-06","2027-07-31","2026-06-18"],
+["ALX1417","2027-06-16","2027-01-19","2027-07-31","2026-06-18"],
+["CAF8528ZM","2027-06-26","2027-01-06","2027-07-31","2026-06-18"],
+["CAF8519ZM","2027-06-26","2026-12-29","2027-07-31","2026-06-18"],
+["BAZ4105ZM","2027-06-08","2026-12-18","2027-07-31","2026-06-18"],
+["BAZ3646ZM","2027-06-01","2026-12-10","2027-07-31","2026-06-18"],
+["CAF8520ZM","2027-06-26","2026-12-30","2027-07-31","2026-06-18"],
+["CAF8526ZM","2027-06-26","2027-01-14","2027-07-31","2026-06-18"],
+["CAF8528ZM","2027-06-26","2027-01-06","2027-07-31","2026-06-18"],
+["BAZ4325ZM","2027-06-12","2027-01-27","2027-07-31","2026-06-18"],
+["BAZ4765ZM","2027-06-18","2026-12-10","2027-07-31","2026-06-18"],
+["CAF8529ZM","2027-06-26","2026-12-30","2027-07-31","2026-06-18"],
+["CAF8533ZM","2026-12-26","2026-12-30","2027-07-31","2026-06-18"],
+["CAD795ZM","2027-03-07","2027-01-04","2027-07-31","2026-06-18"]
+];
+function normAsset(s){let n=String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');return n.endsWith('ZM')?n.slice(0,-2):n;}
+function seedRoadTax2027(){
+  db.documents=Array.isArray(db.documents)?db.documents:[];
+  const findAsset=(reg)=>{
+    const n=normAsset(reg);
+    let v=(db.vehicles||[]).find(x=>normAsset(vehicleNumber(x))===n || normAsset(x.reg)===n);
+    if(v)return v.id;
+    let t=(db.trailers||[]).find(x=>normAsset(x.no)===n || normAsset(x.reg)===n);
+    if(t)return t.id;
+    const id=crypto.randomUUID(); db.vehicles.push({id,no:'',reg,type:'Horse'}); return id;
+  };
+  ROAD_TAX_2027_IMPORT.forEach(([reg,road,fitness,insurance,issue])=>{
+    const id=findAsset(reg);
+    [['Road Tax',road],['Fitness',fitness],['Insurance',insurance]].forEach(([type,expiry])=>{
+      const key=normAsset(reg)+'|'+type;
+      if(!db.documents.some(d=>d.importKey===key || (d.type===type && normAsset(vname(d.vehicleId))===normAsset(reg) && d.expiryDate===expiry))) db.documents.push({id:crypto.randomUUID(),vehicleId:id,type,issueDate:issue,expiryDate:expiry,reminderDays:15,ref:'RTSA 2027',notes:'Imported from supplied RTSA Road Tax certificate.',importKey:key});
+    });
+  });
+  persistDb();
+}
+db.documents.forEach(d=>{ if(d && (d.type==='Road Tax'||d.type==='Fitness'||d.type==='Insurance')) d.reminderDays=15; });
 db.trailers=Array.isArray(db.trailers)?db.trailers:[];
+seedRoadTax2027();
 db.pairs=Array.isArray(db.pairs)?db.pairs:[];
 COMPANY_TRAILERS.forEach(t=>{
   const existing=db.trailers.find(x=>String(x.no||'').trim().toLowerCase()===t.no.toLowerCase());
@@ -1091,7 +1185,7 @@ mergeImportedServiceHistory();
 normalizeServiceHistory();
 persistDb();
 function ensureDbShape(){
-  const keys=['vehicles','trailers','pairs','drivers','jobs','expenses','services','breakdowns','documents','trailerDocuments'];
+  const keys=['vehicles','trailers','pairs','drivers','jobs','expenses','services','breakdowns','documents'];
   keys.forEach(k=>{if(!Array.isArray(db[k]))db[k]=[];});
   return db;
 }
@@ -1107,7 +1201,7 @@ function refresh(){
  document.getElementById('mOpen').textContent=db.jobs.filter(j=>j.status!=='Completed').length;
  document.getElementById('mDone').textContent=db.jobs.filter(j=>j.status==='Completed').length;
  document.getElementById('mExpense').textContent=money(db.expenses.reduce((a,e)=>a+Number(e.amount||0),0));
- populateSelects();populateTrailerComplianceSelect();renderVehicles();renderDrivers();renderTrailers();renderServices();renderBreakdowns();renderDocuments();renderJobs();renderExpenses();renderReport();renderRecent();renderReminders();refreshNotificationCenter();
+ populateSelects();renderVehicles();renderDrivers();renderTrailers();renderServices();renderBreakdowns();renderDocuments();renderJobs();renderExpenses();renderReport();renderRecent();renderReminders();refreshNotificationCenter();
 }
 function openVehiclePicker(id){
  document.getElementById(id+'Picker').classList.add('open');
@@ -1125,15 +1219,18 @@ function renderVehiclePicker(id){
  let search=document.getElementById(id+'Search'),list=document.getElementById(id+'List'),selected=document.getElementById(id).value;
  let q=(search.value||'').toLowerCase().trim();
  let rows=db.vehicles.filter(v=>(v.no+' '+v.reg+' '+v.type).toLowerCase().includes(q));
+ if(id==='dVehicle') rows=rows.concat((db.trailers||[]).filter(t=>(t.no+' '+t.reg+' Trailer').toLowerCase().includes(q)).map(t=>({...t,type:'Trailer'})));
  list.innerHTML=rows.length
-   ? rows.map(v=>`<button type="button" class="vehicle-picker-option ${v.id===selected?'selected':''}" onclick="selectVehicle('${id}','${v.id}')">${esc(v.no)}${v.reg?' — '+esc(v.reg):''}${v.type?' · '+esc(v.type):''}</button>`).join('')
+   ? rows.map(v=>`<button type="button" class="vehicle-picker-option ${v.id===selected?'selected':''}" onclick="selectVehicle('${id}','${v.id}')">${esc(v.no||v.reg)}${v.reg?' — '+esc(v.reg):''}${v.type?' · '+esc(v.type):''}</button>`).join('')
    : '<div class="vehicle-picker-empty">No matching vehicles found.</div>';
 }
 function populateSelects(){
  ['jVehicle','eVehicle','rVehicle','sVehicle','bVehicle','dVehicle'].forEach(id=>{
    let current=document.getElementById(id).value;
    let v=db.vehicles.find(x=>x.id===current);
+   let t=(db.trailers||[]).find(x=>x.id===current);
    if(v)document.getElementById(id+'Search').value=vehicleNumber(v);
+   else if(t)document.getElementById(id+'Search').value=t.no||t.reg||'';
    renderVehiclePicker(id);
  });
 }
@@ -1256,7 +1353,7 @@ function addBreakdown(){
 function deleteBreakdown(id){if(confirm('Delete this breakdown record?')){db.breakdowns=db.breakdowns.filter(x=>x.id!==id);save();}}
 function editBreakdown(id){
   const x=(db.breakdowns||[]).find(b=>b.id===id); if(!x)return;
-  const opts=(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===x.vehicleId?'selected':''}>${esc(vehicleNumber(v))}</option>`).join('');
+  const opts=(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===x.vehicleId?'selected':''}>${esc(vehicleNumber(v))} · ${esc(v.type||'Vehicle')}</option>`).join('')+(db.trailers||[]).map(t=>`<option value="${esc(t.id)}" ${t.id===x.vehicleId?'selected':''}>${esc(t.no||t.reg||'Trailer')} · Trailer</option>`).join('');
   openUnifiedEdit('breakdown',id,'Edit Breakdown',`<div class="unified-edit-grid">
     <div><label>Vehicle</label><select id="ueBreakVehicle">${opts}</select></div>
     <div><label>Date</label><input type="date" id="ueBreakDate" value="${esc(x.date||'')}"></div>
@@ -1282,87 +1379,67 @@ function renderBreakdowns(){
   let rows=db.breakdowns.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
   breakdownTable.innerHTML=rows.length?`<table><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Severity</th><th>Status</th><th>Location</th><th>Repair Cost</th><th>Actions</th></tr>${rows.map(x=>`<tr><td>${esc(x.date||'')}${x.time?' '+esc(x.time):''}</td><td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type||'')}</td><td>${esc(x.severity||'')}</td><td><span class="badge ${x.status==='Completed'?'done':'open'}">${esc(x.status||'')}</span></td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td><button class="primary edit-action" type="button" onclick="editBreakdown('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteBreakdown('${x.id}')">Delete</button></td></tr>`).join('')}</table>`:'<div class="empty">No breakdown records found.</div>';
 }
-function showComplianceTab(tab){
-  const vehicles=document.getElementById('vehicleCompliancePanel'), trailers=document.getElementById('trailerCompliancePanel');
-  const vb=document.getElementById('complianceVehicleTab'), tb=document.getElementById('complianceTrailerTab');
-  if(tab==='trailers'){vehicles.style.display='none';trailers.style.display='block';vb.className='secondary';tb.className='primary';populateTrailerComplianceSelect();}
-  else{vehicles.style.display='block';trailers.style.display='none';vb.className='primary';tb.className='secondary';}
-  renderDocuments();
-}
-function populateTrailerComplianceSelect(){
-  const el=document.getElementById('tdTrailer'); if(!el)return;
-  const current=el.value;
-  el.innerHTML='<option value="">Select trailer...</option>'+(db.trailers||[]).slice().sort((a,b)=>String(a.no||a.reg||'').localeCompare(String(b.no||b.reg||''),undefined,{numeric:true})).map(t=>`<option value="${esc(t.id)}">${esc(t.no||'-')}${t.reg?' — '+esc(t.reg):''}</option>`).join('');
-  if((db.trailers||[]).some(t=>t.id===current))el.value=current;
-}
-function trailerName(id){const t=(db.trailers||[]).find(x=>x.id===id);return t?(t.no||t.reg||'-'):'-';}
-const complianceTypes=['Road Tax','Fitness','Insurance','ZABS Certificate','Electrical Certificate'];
 function addDocument(){
   if(!dVehicle.value)return alert('Select a vehicle.');
-  if(!dIssueDate.value||!dExpiryDate.value)return alert('Enter both issue and expiry dates.');
+  if(!dIssueDate.value || !dExpiryDate.value)return alert('Enter both issue and expiry dates.');
   if(dExpiryDate.value<dIssueDate.value)return alert('Expiry date cannot be before issue date.');
-  db.documents=db.documents||[];
-  db.documents.push({id:crypto.randomUUID(),vehicleId:dVehicle.value,type:dType.value,issueDate:dIssueDate.value,expiryDate:dExpiryDate.value,reminderDays:Number(dReminderDays.value||0),ref:dRef.value.trim(),notes:(document.getElementById('dNotes')?.value||'').trim()});
-  ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); dReminderDays.value=30; save();
+  db.documents.push({
+    id:crypto.randomUUID(),vehicleId:dVehicle.value,type:dType.value,
+    issueDate:dIssueDate.value,expiryDate:dExpiryDate.value,
+    reminderDays:Number(dReminderDays.value||0),ref:dRef.value.trim(),notes:dNotes.value.trim()
+  });
+  ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>document.getElementById(id).value='');
+  dReminderDays.value=15;
+  save();
 }
-function addTrailerDocument(){
-  if(!tdTrailer.value)return alert('Select a trailer.');
-  if(!tdIssueDate.value||!tdExpiryDate.value)return alert('Enter both issue and expiry dates.');
-  if(tdExpiryDate.value<tdIssueDate.value)return alert('Expiry date cannot be before issue date.');
-  db.trailerDocuments=db.trailerDocuments||[];
-  db.trailerDocuments.push({id:crypto.randomUUID(),trailerId:tdTrailer.value,type:tdType.value,issueDate:tdIssueDate.value,expiryDate:tdExpiryDate.value,reminderDays:Number(tdReminderDays.value||0),ref:tdRef.value.trim(),notes:(document.getElementById('tdNotes')?.value||'').trim()});
-  ['tdIssueDate','tdExpiryDate','tdRef','tdNotes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); tdReminderDays.value=30; save();
+function deleteDocument(id){
+  if(confirm('Delete this compliance record?')){db.documents=db.documents.filter(x=>x.id!==id);save();}
 }
-function deleteDocument(id){if(confirm('Delete this compliance record?')){db.documents=(db.documents||[]).filter(x=>x.id!==id);save();}}
-function deleteTrailerDocument(id){if(confirm('Delete this trailer compliance record?')){db.trailerDocuments=(db.trailerDocuments||[]).filter(x=>x.id!==id);save();}}
 function editDocument(id){
-  const x=(db.documents||[]).find(d=>d.id===id);if(!x)return;
-  const opts=(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===x.vehicleId?'selected':''}>${esc(vehicleNumber(v))}</option>`).join('');
-  const types=complianceTypes.map(t=>`<option ${t===x.type?'selected':''}>${esc(t)}</option>`).join('');
-  openUnifiedEdit('document',id,'Edit Vehicle Compliance Record',`<div class="unified-edit-grid">
-  <div><label>Vehicle</label><select id="ueDocVehicle">${opts}</select></div><div><label>Document Type</label><select id="ueDocType">${types}</select></div>
-  <div><label>Issue Date</label><input type="date" id="ueDocIssue" value="${esc(x.issueDate||'')}"></div><div><label>Expiry / Due Date</label><input type="date" id="ueDocExpiry" value="${esc(x.expiryDate||'')}"></div>
-  <div><label>Reminder (days before)</label><input type="number" min="0" id="ueDocReminder" value="${Number(x.reminderDays||0)}"></div><div><label>Reference / Policy No.</label><input id="ueDocRef" value="${esc(x.ref||'')}"></div>
-  </div><div style="margin-top:14px"><label>Notes</label><textarea id="ueDocNotes">${esc(x.notes||'')}</textarea></div>`);
+ const x=(db.documents||[]).find(d=>d.id===id);if(!x)return;
+ const opts=(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===x.vehicleId?'selected':''}>${esc(vehicleNumber(v))} · ${esc(v.type||'Vehicle')}</option>`).join('')+(db.trailers||[]).map(t=>`<option value="${esc(t.id)}" ${t.id===x.vehicleId?'selected':''}>${esc(t.no||t.reg||'Trailer')} · Trailer</option>`).join('');
+ openUnifiedEdit('document',id,'Edit Compliance Record',`<div class="unified-edit-grid">
+  <div><label>Vehicle</label><select id="ueDocVehicle">${opts}</select></div>
+  <div><label>Document Type</label><input id="ueDocType" value="${esc(x.type||'')}"></div>
+  <div><label>Issue Date</label><input type="date" id="ueDocIssue" value="${esc(x.issueDate||'')}"></div>
+  <div><label>Expiry Date</label><input type="date" id="ueDocExpiry" value="${esc(x.expiryDate||'')}"></div>
+  <div><label>Reminder (days before)</label><input type="number" min="0" id="ueDocReminder" value="${Number(x.reminderDays||0)}"></div>
+  <div><label>Reference / Policy No.</label><input id="ueDocRef" value="${esc(x.ref||'')}"></div>
+ </div><div style="margin-top:14px"><label>Notes</label><textarea id="ueDocNotes">${esc(x.notes||'')}</textarea></div>`);
 }
 function saveDocumentEdit(id){
-  const x=(db.documents||[]).find(d=>d.id===id);if(!x)return;
-  const issue=document.getElementById('ueDocIssue').value,expiry=document.getElementById('ueDocExpiry').value;
-  if(!issue||!expiry)return alert('Enter both issue and expiry dates.'); if(expiry<issue)return alert('Expiry date cannot be before issue date.');
-  x.vehicleId=document.getElementById('ueDocVehicle').value;x.type=document.getElementById('ueDocType').value;x.issueDate=issue;x.expiryDate=expiry;x.reminderDays=Number(document.getElementById('ueDocReminder').value||0);x.ref=document.getElementById('ueDocRef').value.trim();x.notes=document.getElementById('ueDocNotes').value.trim();closeUnifiedEdit();save();
+ const x=(db.documents||[]).find(d=>d.id===id);if(!x)return; const issue=document.getElementById('ueDocIssue').value,expiry=document.getElementById('ueDocExpiry').value;if(expiry<issue)return alert('Expiry date cannot be before issue date.');
+ x.vehicleId=document.getElementById('ueDocVehicle').value;x.type=document.getElementById('ueDocType').value.trim();x.issueDate=issue;x.expiryDate=expiry;x.reminderDays=Number(document.getElementById('ueDocReminder').value||0);x.ref=document.getElementById('ueDocRef').value.trim();x.notes=document.getElementById('ueDocNotes').value.trim();closeUnifiedEdit();save();renderDocuments();
 }
-function editTrailerDocument(id){
-  const x=(db.trailerDocuments||[]).find(d=>d.id===id);if(!x)return;
-  const opts=(db.trailers||[]).map(t=>`<option value="${esc(t.id)}" ${t.id===x.trailerId?'selected':''}>${esc(t.no||t.reg||'-')}${t.reg?' — '+esc(t.reg):''}</option>`).join('');
-  const types=complianceTypes.map(t=>`<option ${t===x.type?'selected':''}>${esc(t)}</option>`).join('');
-  openUnifiedEdit('trailerDocument',id,'Edit Trailer Compliance Record',`<div class="unified-edit-grid">
-  <div><label>Trailer</label><select id="ueTDocTrailer">${opts}</select></div><div><label>Document Type</label><select id="ueTDocType">${types}</select></div>
-  <div><label>Issue Date</label><input type="date" id="ueTDocIssue" value="${esc(x.issueDate||'')}"></div><div><label>Expiry / Due Date</label><input type="date" id="ueTDocExpiry" value="${esc(x.expiryDate||'')}"></div>
-  <div><label>Reminder (days before)</label><input type="number" min="0" id="ueTDocReminder" value="${Number(x.reminderDays||0)}"></div><div><label>Reference / Policy No.</label><input id="ueTDocRef" value="${esc(x.ref||'')}"></div>
-  </div><div style="margin-top:14px"><label>Notes</label><textarea id="ueTDocNotes">${esc(x.notes||'')}</textarea></div>`);
-}
-function saveTrailerDocumentEdit(id){
-  const x=(db.trailerDocuments||[]).find(d=>d.id===id);if(!x)return;
-  const issue=document.getElementById('ueTDocIssue').value,expiry=document.getElementById('ueTDocExpiry').value;
-  if(!issue||!expiry)return alert('Enter both issue and expiry dates.'); if(expiry<issue)return alert('Expiry date cannot be before issue date.');
-  x.trailerId=document.getElementById('ueTDocTrailer').value;x.type=document.getElementById('ueTDocType').value;x.issueDate=issue;x.expiryDate=expiry;x.reminderDays=Number(document.getElementById('ueTDocReminder').value||0);x.ref=document.getElementById('ueTDocRef').value.trim();x.notes=document.getElementById('ueTDocNotes').value.trim();closeUnifiedEdit();save();
-}
+
 function renderDocuments(){
-  db.documents=db.documents||[];db.trailerDocuments=db.trailerDocuments||[];
-  const q=(document.getElementById('documentSearch')?.value||'').toLowerCase().trim();
-  const vr=db.documents.slice().sort((a,b)=>String(a.expiryDate||'').localeCompare(String(b.expiryDate||''))).filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
-  const tr=db.trailerDocuments.slice().sort((a,b)=>String(a.expiryDate||'').localeCompare(String(b.expiryDate||''))).filter(x=>JSON.stringify({...x,trailer:trailerName(x.trailerId)}).toLowerCase().includes(q));
-  const vt=vr.length?`<table><tr><th>Vehicle</th><th>Type</th><th>Issue Date</th><th>Expiry / Due</th><th>Reminder</th><th>Reference</th><th>Actions</th></tr>${vr.map(x=>{let days=dateDiffDays(x.expiryDate);return `<tr><td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type||'')}</td><td>${esc(x.issueDate||'')}</td><td>${esc(x.expiryDate||'')}</td><td>${reminderBadge(days,x.type)}<br><small>Reminder: ${Number(x.reminderDays||0)} days before</small></td><td>${esc(x.ref||'-')}<br><small>${esc(x.notes||'')}</small></td><td><button class="primary edit-action" type="button" onclick="editDocument('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteDocument('${x.id}')">Delete</button></td></tr>`}).join('')}</table>`:'<div class="empty">No vehicle compliance records found.</div>';
-  const tt=tr.length?`<table><tr><th>Trailer</th><th>Type</th><th>Issue Date</th><th>Expiry / Due</th><th>Reminder</th><th>Reference</th><th>Actions</th></tr>${tr.map(x=>{let days=dateDiffDays(x.expiryDate);return `<tr><td><b>${esc(trailerName(x.trailerId))}</b></td><td>${esc(x.type||'')}</td><td>${esc(x.issueDate||'')}</td><td>${esc(x.expiryDate||'')}</td><td>${reminderBadge(days,x.type)}<br><small>Reminder: ${Number(x.reminderDays||0)} days before</small></td><td>${esc(x.ref||'-')}<br><small>${esc(x.notes||'')}</small></td><td><button class="primary edit-action" type="button" onclick="editTrailerDocument('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteTrailerDocument('${x.id}')">Delete</button></td></tr>`}).join('')}</table>`:'<div class="empty">No trailer compliance records found.</div>';
-  documentTable.innerHTML=`<div class="compliance-results-block"><h3>Vehicle Compliance (${vr.length})</h3>${vt}</div><div class="compliance-results-block" style="margin-top:24px"><h3>Trailer Compliance (${tr.length})</h3>${tt}</div>`;
+  let q=(documentSearch?.value||'').toLowerCase();
+  let rows=db.documents.slice().sort((a,b)=>a.expiryDate.localeCompare(b.expiryDate))
+    .filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
+  documentTable.innerHTML=rows.length?`<table>
+  <tr><th>Vehicle</th><th>Type</th><th>Issue Date</th><th>Expiry Date</th><th>Reminder</th><th>Reference</th><th></th></tr>
+  ${rows.map(x=>{
+    let days=dateDiffDays(x.expiryDate);
+    return `<tr>
+      <td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type)}</td>
+      <td>${esc(x.issueDate)}</td><td>${esc(x.expiryDate)}</td>
+      <td>${reminderBadge(days,x.type)}<br><small>Reminder: ${Number(x.reminderDays||0)} days before</small></td>
+      <td>${esc(x.ref||'-')}<br><small>${esc(x.notes||'')}</small></td>
+      <td><button class="primary edit-action" type="button" onclick="editDocument('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteDocument('${x.id}')">Delete</button></td>
+    </tr>`;
+  }).join('')}</table>`:'<div class="empty">No tax, fitness or insurance records found.</div>';
 }
 function collectReminders(){
   const out=[];
-  (db.documents||[]).forEach(x=>{const days=dateDiffDays(x.expiryDate),n=Number(x.reminderDays||0);if(days!==null&&days<=n)out.push({date:x.expiryDate,days,title:`${x.type} — ${vname(x.vehicleId)}`,text:days<0?`${Math.abs(days)} day(s) overdue`:(days===0?'Due today':`Expires in ${days} day(s)`)})});
-  (db.trailerDocuments||[]).forEach(x=>{const days=dateDiffDays(x.expiryDate),n=Number(x.reminderDays||0);if(days!==null&&days<=n)out.push({date:x.expiryDate,days,title:`${x.type} — Trailer ${trailerName(x.trailerId)}`,text:days<0?`${Math.abs(days)} day(s) overdue`:(days===0?'Due today':`Expires in ${days} day(s)`)})});
-  return out.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+  db.documents.forEach(x=>{
+    const days=dateDiffDays(x.expiryDate), n=Number(x.reminderDays||0);
+    if(days!==null && days<=n) out.push({
+      date:x.expiryDate, days, title:`${x.type} — ${vname(x.vehicleId)}`,
+      text:days<0?`${Math.abs(days)} day(s) overdue`:(days===0?'Due today':`Expires in ${days} day(s)`)
+    });
+  });
+  return out.sort((a,b)=>(a.kmRemaining??Infinity)-(b.kmRemaining??Infinity));
 }
-
 function renderReminders(){
   const rows=collectReminders();
   reminders.innerHTML=rows.length?rows.slice(0,15).map(r=>{
@@ -1628,7 +1705,7 @@ function closeExpenseEdit(){const m=document.getElementById('expenseEditModal');
 function saveExpenseEdit(){const id=document.getElementById('editExpenseId').value;const e=db.expenses.find(x=>x.id===id);if(!e)return;e.vehicleId=document.getElementById('editExpenseVehicle').value;e.date=document.getElementById('editExpenseDate').value||today();e.cat=document.getElementById('editExpenseCat').value;e.payee=document.getElementById('editExpensePayee').value.trim();e.ref=document.getElementById('editExpenseRef').value.trim();e.amount=Number(document.getElementById('editExpenseAmount').value||0);e.desc=document.getElementById('editExpenseDesc').value.trim();closeExpenseEdit();save()}
 function deleteExpense(id){if(confirm('Delete this expense?')){db.expenses=db.expenses.filter(e=>e.id!==id);save()}}
 function vehicleNumber(v){return v?(v.reg||v.vehicleNumber||v.vehicle_number||v.registration||v.no||'-'):'-'}
-function vname(id,ref){let v=db.vehicles.find(v=>v.id===id);return v?vehicleNumber(v):(ref||'Unknown')}
+function vname(id,ref){let v=db.vehicles.find(v=>v.id===id);if(v)return vehicleNumber(v);let t=(db.trailers||[]).find(t=>t.id===id);return t?(t.no||t.reg||'Trailer'):(ref||'Unknown')}
 function renderRecent(){let r=db.jobs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);recentJobs.innerHTML=r.length?`<table><tr><th>Date</th><th>Job</th><th>Vehicle</th><th>Status</th><th>Cost</th></tr>${r.map(j=>`<tr><td>${esc(j.date)}</td><td>${esc(j.no)}</td><td>${esc(vname(j.vehicleId))}</td><td>${esc(j.status)}</td><td>${esc(j.dateFinished||'')}</td><td>${esc(j.daysTaken??'')}</td><td>${money(j.cost)}</td></tr>`).join('')}</table>`:'<div class="empty">No job cards yet.</div>'}
 function renderReportLegacy(){
  const reportType=document.getElementById('rReportType')?.value||'service-one';
@@ -1918,9 +1995,9 @@ function printReport(){
  setTimeout(()=>document.getElementById('reports').classList.remove('printing'),500);
 }
 function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Oasis-Oil-Backup-'+today()+'.json';a.click();URL.revokeObjectURL(a.href)}
-function importData(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.vehicles||!x.jobs||!x.expenses)throw Error();x.services=Array.isArray(x.services)?x.services:[];x.breakdowns=Array.isArray(x.breakdowns)?x.breakdowns:[];x.documents=Array.isArray(x.documents)?x.documents:[];x.trailerDocuments=Array.isArray(x.trailerDocuments)?x.trailerDocuments:[];x.drivers=Array.isArray(x.drivers)?x.drivers:[];db=x;ensureDbShape();save();alert('Backup restored.')}catch(e){alert('Invalid Oasis backup file.')}};r.readAsText(f)}
+function importData(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.vehicles||!x.jobs||!x.expenses)throw Error();x.services=Array.isArray(x.services)?x.services:[];x.breakdowns=Array.isArray(x.breakdowns)?x.breakdowns:[];x.documents=Array.isArray(x.documents)?x.documents:[];x.drivers=Array.isArray(x.drivers)?x.drivers:[];db=x;ensureDbShape();save();alert('Backup restored.')}catch(e){alert('Invalid Oasis backup file.')}};r.readAsText(f)}
 jDate.value=today();eDate.value=today();
-sDate.value=today();bDate.value=today();dIssueDate.value=today();tdIssueDate.value=today();
+sDate.value=today();bDate.value=today();dIssueDate.value=today();
 function updateClock(){
   const now=new Date();
   document.getElementById('clock').textContent=now.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'});
@@ -2654,7 +2731,7 @@ try{renderVehicles();renderTrailers();}catch(e){}
 <script>
 function openUnifiedEdit(type,id,title,body){const m=document.getElementById('unifiedEditModal');document.getElementById('unifiedEditType').value=type;document.getElementById('unifiedEditId').value=id;document.getElementById('unifiedEditTitle').textContent=title;document.getElementById('unifiedEditBody').innerHTML=body;m.classList.add('show');m.setAttribute('aria-hidden','false');}
 function closeUnifiedEdit(){const m=document.getElementById('unifiedEditModal');if(!m)return;m.classList.remove('show');m.setAttribute('aria-hidden','true');}
-function saveUnifiedEdit(){const type=document.getElementById('unifiedEditType').value,id=document.getElementById('unifiedEditId').value;if(type==='vehicle')saveVehicleEdit(id);else if(type==='driver')saveDriverModal(id);else if(type==='trailer')saveTrailerInline(id);else if(type==='breakdown')saveBreakdownEdit(id);else if(type==='document')saveDocumentEdit(id);else if(type==='trailerDocument')saveTrailerDocumentEdit(id);}
+function saveUnifiedEdit(){const type=document.getElementById('unifiedEditType').value,id=document.getElementById('unifiedEditId').value;if(type==='vehicle')saveVehicleEdit(id);else if(type==='driver')saveDriverModal(id);else if(type==='trailer')saveTrailerInline(id);else if(type==='breakdown')saveBreakdownEdit(id);else if(type==='document')saveDocumentEdit(id);}
 function editDriver(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)return;const opts='<option value="">— Unassigned —</option>'+(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===d.vehicleId?'selected':''}>${esc(vehicleNumber(v))}</option>`).join('');openUnifiedEdit('driver',id,'Edit Driver',`<div class="unified-edit-grid"><div><label>Driver Name</label><input id="ueDriverName" value="${esc(d.name||'')}"></div><div><label>Phone Number</label><input id="ueDriverPhone" value="${esc(d.phone||'')}"></div><div><label>Assigned Vehicle</label><select id="ueDriverVehicle">${opts}</select></div></div>`);}
 function saveDriverModal(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)return;d.name=document.getElementById('ueDriverName').value.trim();d.phone=document.getElementById('ueDriverPhone').value.trim();const vid=document.getElementById('ueDriverVehicle').value;(db.drivers||[]).forEach(x=>{if(x.id!==id&&x.vehicleId===vid&&vid)x.vehicleId='';});d.vehicleId=vid||'';closeUnifiedEdit();persistDb();renderDrivers();renderVehicles();}
 </script>
@@ -2677,45 +2754,5 @@ function saveDriverModal(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)r
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(renderReportsSafely,0);});
 })();
 </script>
-
-<script>
-(function(){
-  function openDashboardCard(card){
-    if(!card) return;
-    const view = card.getAttribute('data-dashboard-view');
-    if(!view || typeof showView !== 'function') return;
-
-    showView(view);
-
-    // For Job Cards, automatically select the matching status filter.
-    const status = card.getAttribute('data-job-status');
-    if(view === 'jobs' && status){
-      const filter = document.getElementById('jobStatusFilter');
-      if(filter){
-        filter.value = status;
-        if(typeof renderJobs === 'function') renderJobs();
-      }
-    }
-
-    // Bring the destination section to the top on both mobile and desktop.
-    const target = document.getElementById(view);
-    if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
-  }
-
-  document.addEventListener('click', function(e){
-    const card = e.target.closest('.dashboard-link-card');
-    if(card) openDashboardCard(card);
-  });
-
-  document.addEventListener('keydown', function(e){
-    if(e.key !== 'Enter' && e.key !== ' ') return;
-    const card = e.target.closest('.dashboard-link-card');
-    if(!card) return;
-    e.preventDefault();
-    openDashboardCard(card);
-  });
-})();
-</script>
-
 </body>
 </html>
