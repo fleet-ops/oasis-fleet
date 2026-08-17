@@ -1794,10 +1794,67 @@ function renderCompleteFleetReport(){
   document.getElementById('reportOutput').innerHTML=html;
 }
 
+function renderJobCardsReport(){
+  const type=String(document.getElementById('rReportType')?.value||'').trim();
+  const from=document.getElementById('rFrom')?.value||'';
+  const to=document.getElementById('rTo')?.value||'';
+  const selectedId=document.getElementById('rVehicle')?.value||'';
+  const all=type==='job-all';
+  const output=document.getElementById('reportOutput');
+  if(!output)return;
+  if(!all&&!selectedId){
+    output.innerHTML='<div class="panel"><div class="empty">Select a vehicle to generate its job card report.</div></div>';
+    return;
+  }
+  const inRange=d=>(!from||!d||String(d)>=from)&&(!to||!d||String(d)<=to);
+  const jobs=(db.jobs||[]).filter(j=>inRange(j.date) && (all||j.vehicleId===selectedId))
+    .slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+  const vehicleById=new Map((db.vehicles||[]).map(v=>[v.id,v]));
+  const labelFor=v=>v?(v.reg||v.vehicleNumber||v.vehicle_number||v.registration||v.no||'-'):'-';
+  const moneySafe=n=>money(Number(n||0));
+  const total=jobs.reduce((sum,j)=>sum+Number(j.cost||0),0);
+  let html='<div class="panel report-result job-report-screen">';
+  html+='<div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">'+(all?'JOB CARDS — ALL VEHICLES':'JOB CARD REPORT')+'</div></div></div>';
+  if(!all){
+    const v=vehicleById.get(selectedId);
+    html+='<h1 style="margin:0 0 8px;font-weight:800">'+esc(labelFor(v))+'</h1>';
+    html+='<p><b>Vehicle Number:</b> '+esc(labelFor(v))+' &nbsp; <b>Type:</b> '+esc(v?.type||'-')+'</p>';
+  }
+  html+='<p><b>Period:</b> '+esc(from||'All time')+' to '+esc(to||'Present')+' &nbsp; <b>Records:</b> '+jobs.length+'</p>';
+  if(!jobs.length){
+    html+='<div class="empty">No job card records found for this report period.</div>';
+  }else if(all){
+    const groups=new Map();
+    jobs.forEach(j=>{const key=j.vehicleId||'__unassigned__';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(j);});
+    let n=0;
+    for(const [vid,rows] of groups){
+      n++;
+      const v=vehicleById.get(vid);
+      html+='<div class="fleet-report-section" style="margin-top:22px"><h2 style="margin:0 0 10px">'+n+'. '+esc(labelFor(v))+'</h2>';
+      html+='<div style="overflow:auto"><table><tr><th>Vehicle Number</th><th>Date</th><th>Job Card</th><th>Problem</th><th>Work Done</th><th>Finished</th><th>Days</th><th>Status</th><th>Cost</th></tr>';
+      rows.forEach(j=>{html+='<tr><td>'+esc(labelFor(v)||j.vehicleRef||'-')+'</td><td>'+esc(j.date||'-')+'</td><td>'+esc(j.no||'-')+'</td><td>'+esc(j.problem||'-')+'</td><td>'+esc(j.work||'-')+'</td><td>'+esc(j.dateFinished||'-')+'</td><td>'+esc(j.daysTaken??'-')+'</td><td>'+esc(j.status||'-')+'</td><td>'+moneySafe(j.cost)+'</td></tr>';});
+      const groupTotal=rows.reduce((sum,j)=>sum+Number(j.cost||0),0);
+      html+='</table></div><div style="text-align:right;font-weight:800;margin-top:8px">Vehicle Job Cost Total: '+moneySafe(groupTotal)+'</div></div>';
+    }
+  }else{
+    html+='<div style="overflow:auto"><table><tr><th>Vehicle Number</th><th>Date</th><th>Job Card</th><th>Problem</th><th>Work Done</th><th>Finished</th><th>Days</th><th>Status</th><th>Cost</th></tr>';
+    jobs.forEach(j=>{const v=vehicleById.get(j.vehicleId);html+='<tr><td>'+esc(labelFor(v)||j.vehicleRef||'-')+'</td><td>'+esc(j.date||'-')+'</td><td>'+esc(j.no||'-')+'</td><td>'+esc(j.problem||'-')+'</td><td>'+esc(j.work||'-')+'</td><td>'+esc(j.dateFinished||'-')+'</td><td>'+esc(j.daysTaken??'-')+'</td><td>'+esc(j.status||'-')+'</td><td>'+moneySafe(j.cost)+'</td></tr>';});
+    html+='</table></div>';
+  }
+  html+='<div class="cards" style="margin-top:16px"><div class="card"><div class="label">Total Job Cards</div><div class="metric">'+jobs.length+'</div></div><div class="card"><div class="label">Total Job Costs</div><div class="metric">'+moneySafe(total)+'</div></div></div>';
+  html+='</div>';
+  output.innerHTML=html;
+  output.style.display='block';
+}
+
 function renderReport(){
-  const type=document.getElementById('rReportType')?.value||'service-one';
+  const type=String(document.getElementById('rReportType')?.value||'service-one').trim();
   if(type==='fleet-all'){
     renderCompleteFleetReport();
+    return;
+  }
+  if(type==='job-all'||type==='job-one'){
+    renderJobCardsReport();
     return;
   }
   renderReportLegacy();
@@ -1998,7 +2055,7 @@ async function exportFleetExcel(kind){
 }
 
 function syncReportControls(){
-  const type=document.getElementById('rReportType')?.value||'service-one';
+  const type=String(document.getElementById('rReportType')?.value||'service-one').trim();
   const all=type.endsWith('-all');
   const wrap=document.getElementById('rVehicleWrap');
   if(wrap)wrap.style.display=all?'none':'block';
@@ -2006,6 +2063,7 @@ function syncReportControls(){
     const rv=document.getElementById('rVehicle'); if(rv)rv.value='';
     const rs=document.getElementById('rVehicleSearch'); if(rs)rs.value='';
   }
+  if(document.getElementById('reportOutput')) renderReport();
 }
 function exportSelectedReportExcel(){
   const type=document.getElementById('rReportType')?.value||'service-one';
