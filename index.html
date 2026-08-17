@@ -76,6 +76,11 @@ html[data-theme="dark"] body{background:radial-gradient(circle at 10% 0%,rgba(79
 html[data-theme="dark"] nav{background:rgba(13,19,32,.88);border-color:var(--line)}html[data-theme="dark"] nav button{color:#aeb9ca}html[data-theme="dark"] nav button:hover{background:#182237}html[data-theme="dark"] nav button.active{background:linear-gradient(135deg,#1a2a4a,#241e43);color:#a9bcff}
 html[data-theme="dark"] .panel,html[data-theme="dark"] .card{background:rgba(17,24,39,.92);border-color:var(--line)}html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="dark"] textarea{background:#0d1524;color:var(--text);border-color:#2a3850}html[data-theme="dark"] label{color:#b8c3d4}html[data-theme="dark"] .secondary{background:#182132;color:#e8eef8;border-color:#2a3850}html[data-theme="dark"] th{background:#172033;color:#aeb9ca}html[data-theme="dark"] tbody tr:hover td{background:#131e31}html[data-theme="dark"] td,html[data-theme="dark"] th{border-color:var(--line)}html[data-theme="dark"] .vehicle-picker-list{background:#111827;border-color:#2a3850}html[data-theme="dark"] .vehicle-picker-option{background:#111827;color:#eef3fb}html[data-theme="dark"] .vehicle-picker-option:hover{background:#1a2740}html[data-theme="dark"] .vehicle-picker-option.selected{background:#182237}html[data-theme="dark"] .modalbox{background:#111827;border-color:#2a3850}html[data-theme="dark"] #notificationBell{background:#111827!important;color:#fff;border-color:#2a3850}html[data-theme="dark"] #notificationPanel{background:#111827!important;color:#eef3fb}html[data-theme="dark"] #notificationPanel button{color:#eef3fb;background:#182132;border:1px solid #2a3850;border-radius:9px;padding:7px 10px}html[data-theme="dark"] .report-company,html[data-theme="dark"] h1,html[data-theme="dark"] h2{color:#eef3fb}
 @media(max-width:700px){header{padding:12px 14px}nav{top:64px}main{padding:18px 12px}.panel{padding:15px;border-radius:15px}.theme-toggle span{display:none}.theme-toggle{padding:9px 10px}.brand{font-size:18px}}
+
+.dashboard-link-card{cursor:pointer;position:relative;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.dashboard-link-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(15,23,42,.10)}
+.dashboard-link-card:focus-visible{outline:3px solid rgba(79,70,229,.28);outline-offset:2px}
+.dashboard-link-hint{font-size:.78rem;font-weight:700;color:#64748b;margin-top:7px;opacity:.9}
 </style>
 
 <style>
@@ -262,10 +267,10 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <section id="dashboard" class="view active">
 <h1>Workshop Dashboard</h1><p class="sub">Track vehicles, job cards, repairs and expenses in one place.</p>
 <div class="cards">
-<div class="card"><div class="label">Vehicles</div><div class="metric" id="mVehicles">0</div></div>
-<div class="card"><div class="label">Open Job Cards</div><div class="metric" id="mOpen">0</div></div>
-<div class="card"><div class="label">Completed Jobs</div><div class="metric" id="mDone">0</div></div>
-<div class="card"><div class="label">Total Expenses</div><div class="metric" id="mExpense">K0</div></div>
+<div class="card dashboard-link-card" data-dashboard-view="vehicles" role="button" tabindex="0" title="Open Vehicles"><div class="label">Vehicles</div><div class="metric" id="mVehicles">0</div><div class="dashboard-link-hint">Open Vehicles →</div></div>
+<div class="card dashboard-link-card" data-dashboard-view="jobs" data-job-status="Open" role="button" tabindex="0" title="Open Job Cards"><div class="label">Open Job Cards</div><div class="metric" id="mOpen">0</div><div class="dashboard-link-hint">Open Job Cards →</div></div>
+<div class="card dashboard-link-card" data-dashboard-view="jobs" data-job-status="Completed" role="button" tabindex="0" title="Open Completed Job Cards"><div class="label">Completed Jobs</div><div class="metric" id="mDone">0</div><div class="dashboard-link-hint">Open Completed Jobs →</div></div>
+<div class="card dashboard-link-card" data-dashboard-view="expenses" role="button" tabindex="0" title="Open Expenses"><div class="label">Total Expenses</div><div class="metric" id="mExpense">K0</div><div class="dashboard-link-hint">Open Expenses →</div></div>
 </div>
 <div class="panel"><h2>Recent Job Cards</h2><div id="recentJobs"></div></div>
 <div class="panel"><h2>Upcoming Reminders</h2><div id="reminders"></div></div>
@@ -2639,5 +2644,45 @@ function saveDriverModal(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)r
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(renderReportsSafely,0);});
 })();
 </script>
+
+<script>
+(function(){
+  function openDashboardCard(card){
+    if(!card) return;
+    const view = card.getAttribute('data-dashboard-view');
+    if(!view || typeof showView !== 'function') return;
+
+    showView(view);
+
+    // For Job Cards, automatically select the matching status filter.
+    const status = card.getAttribute('data-job-status');
+    if(view === 'jobs' && status){
+      const filter = document.getElementById('jobStatusFilter');
+      if(filter){
+        filter.value = status;
+        if(typeof renderJobs === 'function') renderJobs();
+      }
+    }
+
+    // Bring the destination section to the top on both mobile and desktop.
+    const target = document.getElementById(view);
+    if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  document.addEventListener('click', function(e){
+    const card = e.target.closest('.dashboard-link-card');
+    if(card) openDashboardCard(card);
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Enter' && e.key !== ' ') return;
+    const card = e.target.closest('.dashboard-link-card');
+    if(!card) return;
+    e.preventDefault();
+    openDashboardCard(card);
+  });
+})();
+</script>
+
 </body>
 </html>
