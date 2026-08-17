@@ -530,6 +530,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 </div>
 <div class="grid3" style="margin-top:12px">
 <div><label>Reported By / Driver</label><input id="jDriver"></div>
+<div><label>Done By Who?</label><input id="jDoneBy" placeholder="Person who completed the job"></div>
 <div><label>Odometer (km)</label><input type="number" id="jOdo"></div>
 <div><label>Status</label><select id="jStatus"><option>Open</option><option>In Progress</option><option>Completed</option></select></div>
 </div><div class="grid3" style="margin-top:12px">
@@ -1580,6 +1581,7 @@ function openJobEdit(id){
  document.getElementById('editJobDate').value=j.date||'';
  document.getElementById('editJobNo').value=j.no||'';
  document.getElementById('editJobDriver').value=j.driver||'';
+ document.getElementById('editJobDoneBy').value=j.doneBy||'';
  document.getElementById('editJobOdo').value=j.odo??'';
  document.getElementById('editJobStatus').value=j.status||'Open';
  document.getElementById('editJobDateFinished').value=j.dateFinished||'';
@@ -1596,7 +1598,7 @@ function saveJobEdit(){
  const no=document.getElementById('editJobNo').value.trim(); if(!no)return alert('Job Card No. cannot be empty.');
  j.vehicleId=document.getElementById('editJobVehicle').value;
  j.date=document.getElementById('editJobDate').value||today();
- j.no=no; j.driver=document.getElementById('editJobDriver').value.trim();
+ j.no=no; j.driver=document.getElementById('editJobDriver').value.trim(); j.doneBy=document.getElementById('editJobDoneBy').value.trim();
  j.odo=document.getElementById('editJobOdo').value; j.status=document.getElementById('editJobStatus').value;
  j.dateFinished=document.getElementById('editJobDateFinished').value; j.daysTaken=document.getElementById('editJobDaysTaken').value;
  j.problem=document.getElementById('editJobProblem').value.trim(); j.work=document.getElementById('editJobWork').value.trim();
@@ -2483,6 +2485,7 @@ try{renderVehicles();renderTrailers();}catch(e){}
       <div><label>Date</label><input type="date" id="editJobDate"></div>
       <div><label>Job Card No.</label><input id="editJobNo"></div>
       <div><label>Reported By / Driver</label><input id="editJobDriver"></div>
+      <div><label>Done By Who?</label><input id="editJobDoneBy" placeholder="Person who completed the job"></div>
       <div><label>Odometer (km)</label><input type="number" id="editJobOdo"></div>
       <div><label>Status</label><select id="editJobStatus"><option>Open</option><option>In Progress</option><option>Completed</option></select></div>
       <div><label>Date Finished</label><input type="date" id="editJobDateFinished"></div>
