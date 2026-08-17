@@ -614,9 +614,8 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 </section>
 
 <section id="backup" class="view">
-<h1>Backup & Data</h1><p class="sub">This version stores data in this browser. Export a backup regularly so nothing is lost.</p>
+<h1>Backup & Data</h1>
 <div class="panel"><h2>Backup</h2><div class="actions"><button class="primary" onclick="exportData()">Download Backup</button><button class="secondary" onclick="document.getElementById('importFile').click()">Restore Backup</button><input id="importFile" type="file" accept=".json" hidden onchange="importData(event)"></div></div>
-<div class="panel"><h2>Important</h2><p>For a real company-wide deployment, the next version should use a shared cloud database with user accounts, permissions, audit history, attachments, automatic reminders and central backups.</p></div>
 </section>
 </main>
 
@@ -1586,7 +1585,7 @@ function deleteExpense(id){if(confirm('Delete this expense?')){db.expenses=db.ex
 function vehicleNumber(v){return v?(v.reg||v.vehicleNumber||v.vehicle_number||v.registration||v.no||'-'):'-'}
 function vname(id,ref){let v=db.vehicles.find(v=>v.id===id);return v?vehicleNumber(v):(ref||'Unknown')}
 function renderRecent(){let r=db.jobs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);recentJobs.innerHTML=r.length?`<table><tr><th>Date</th><th>Job</th><th>Vehicle</th><th>Status</th><th>Cost</th></tr>${r.map(j=>`<tr><td>${esc(j.date)}</td><td>${esc(j.no)}</td><td>${esc(vname(j.vehicleId))}</td><td>${esc(j.status)}</td><td>${esc(j.dateFinished||'')}</td><td>${esc(j.daysTaken??'')}</td><td>${money(j.cost)}</td></tr>`).join('')}</table>`:'<div class="empty">No job cards yet.</div>'}
-function renderReport(){
+function renderReportLegacy(){
  const reportType=document.getElementById('rReportType')?.value||'service-one';
  const from=rFrom.value,to=rTo.value;
  const dedupedServices=()=>{
@@ -1622,6 +1621,59 @@ function renderReport(){
    reportOutput.innerHTML=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">BREAKDOWN HISTORY — SELECTED VEHICLE</div></div></div><h1 style="margin:0 0 8px;font-weight:800">${esc(v?.reg||v?.no||'Vehicle')}</h1><p><b>Registration:</b> ${esc(v?.reg||'-')} &nbsp; <b>Type:</b> ${esc(v?.type||'-')}</p><p><b>Period:</b> ${esc(from||'All time')} to ${esc(to||'Present')} &nbsp; <b>Records:</b> ${rows.length}</p>${rows.length?`<table><tr><th>Date</th><th>Type</th><th>Severity</th><th>Status</th><th>Location</th><th>Driver</th><th>Recovery</th><th>Repair Cost</th><th>Repair / Action</th></tr>${rows.map(x=>`<tr><td>${esc(x.date||'')}${x.time?' '+esc(x.time):''}</td><td>${esc(x.type||'')}</td><td>${esc(x.severity||'')}</td><td>${esc(x.status||'')}</td><td>${esc(x.location||'-')}</td><td>${esc(x.driver||'-')}</td><td>${esc(x.recovery||'-')}</td><td>${money(x.cost)}</td><td>${esc(x.repair||'-')}</td></tr>`).join('')}</table>`:'<p>No breakdown records in this period.</p>'}</div>`;
    return;
  }
+ if(reportType==='fleet-all'){
+   const vs=(db.vehicles||[]).slice().sort((a,b)=>String(a.reg||a.no||'').localeCompare(String(b.reg||b.no||'')));
+   const svcSeen=new Set();
+   const servicesAll=(db.services||[]).filter(x=>inRange(x.date)).filter(x=>{const k=serviceEventKey(x);if(svcSeen.has(k))return false;svcSeen.add(k);return true;});
+   const brAll=(db.breakdowns||[]).filter(x=>inRange(x.date));
+   const jobAll=(db.jobs||[]).filter(x=>inRange(x.date));
+   const expAll=(db.expenses||[]).filter(x=>inRange(x.date));
+   const docAll=(db.documents||[]);
+   const fleetRows=vs.map(v=>{
+     const d=(db.drivers||[]).find(x=>x.vehicleId===v.id);
+     const pair=(db.pairs||[]).find(x=>x.horseId===v.id);
+     const tr=pair?(db.trailers||[]).find(x=>x.id===pair.trailerId):null;
+     const ss=servicesAll.filter(x=>x.vehicleId===v.id), bs=brAll.filter(x=>x.vehicleId===v.id), js=jobAll.filter(x=>x.vehicleId===v.id), es=expAll.filter(x=>x.vehicleId===v.id), ds=docAll.filter(x=>x.vehicleId===v.id);
+     const jc=js.reduce((a,x)=>a+Number(x.cost||0),0), ec=es.reduce((a,x)=>a+Number(x.amount||0),0);
+     return {v,d,tr,ss,bs,js,es,ds,jc,ec};
+   });
+   const section=(title,html)=>`<div class="panel fleet-report-section" style="margin-top:18px"><h2 style="margin-top:0">${title}</h2>${html}</div>`;
+   const table=(heads,rows,empty)=>rows.length?`<div style="overflow:auto"><table><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr>${rows.join('')}</table></div>`:`<p>${empty}</p>`;
+   let html=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">COMPLETE FLEET REPORT — ALL VEHICLES</div></div></div><p><b>Vehicles:</b> ${vs.length} &nbsp; <b>Period:</b> ${esc(from||'All time')} to ${esc(to||'Present')}</p>`;
+   fleetRows.forEach((r,i)=>{
+     const v=r.v;
+     html+=section(`${i+1}. ${esc(v.reg||v.vehicleNumber||v.no||'Vehicle')}`,`
+       <div class="grid3"><div><label>Vehicle Number</label><b>${esc(v.reg||v.vehicleNumber||'-')}</b></div><div><label>Fleet Number</label><b>${esc(v.no||'-')}</b></div><div><label>Vehicle Type</label><b>${esc(v.type||'-')}</b></div><div><label>Assigned Driver</label>${r.d?esc(r.d.name||'-')+' — '+esc(r.d.phone||'-'):'-'}</div><div><label>Paired Trailer</label>${r.tr?esc(r.tr.no||'-')+' — '+esc(r.tr.reg||'-'):'-'}</div><div><label>Total Costs</label><b>${money(r.jc+r.ec)}</b></div></div>
+       ${table(['Service Date','Mileage','Work / Notes','Next Service','Serviced By'],r.ss.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))).map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${x.km==null?'-':Number(x.km).toLocaleString()}</td><td>${esc(x.work||x.notes||'-')}</td><td>${x.nextKm==null||x.nextKm===''?'-':Number(x.nextKm).toLocaleString()}</td><td>${esc(x.servicedBy||'-')}</td></tr>`),'No service history.')}
+       ${table(['Breakdown Date','Type','Severity','Status','Location','Repair Cost','Repair / Action'],r.bs.map(x=>`<tr><td>${esc(x.date||'-')}${x.time?' '+esc(x.time):''}</td><td>${esc(x.type||'-')}</td><td>${esc(x.severity||'-')}</td><td>${esc(x.status||'-')}</td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td>${esc(x.repair||'-')}</td></tr>`),'No breakdown history.')}
+       ${table(['Document','Issue Date','Expiry / Due','Reminder','Reference'],r.ds.sort((a,b)=>String(a.expiryDate||'').localeCompare(String(b.expiryDate||''))).map(x=>`<tr><td>${esc(x.type||'-')}</td><td>${esc(x.issueDate||'-')}</td><td>${esc(x.expiryDate||'-')}</td><td>${Number(x.reminderDays||0)} days</td><td>${esc(x.ref||'-')}</td></tr>`),'No tax, fitness or insurance records.')}
+       ${table(['Job Date','Job Card','Problem','Work Done','Finished','Days','Status','Cost'],r.js.map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${esc(x.no||'-')}</td><td>${esc(x.problem||'-')}</td><td>${esc(x.work||'-')}</td><td>${esc(x.dateFinished||'-')}</td><td>${esc(x.daysTaken??'-')}</td><td>${esc(x.status||'-')}</td><td>${money(x.cost)}</td></tr>`),'No job cards.')}
+       ${table(['Expense Date','Category','Payee','Reference','Description','Amount'],r.es.map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${esc(x.cat||'-')}</td><td>${esc(x.payee||'-')}</td><td>${esc(x.ref||'-')}</td><td>${esc(x.desc||'-')}</td><td>${money(x.amount)}</td></tr>`),'No expenses.')}
+       <div class="cards" style="margin-top:12px"><div class="card"><div class="label">Job Costs</div><div class="metric">${money(r.jc)}</div></div><div class="card"><div class="label">Expenses</div><div class="metric">${money(r.ec)}</div></div><div class="card"><div class="label">Total Spent</div><div class="metric">${money(r.jc+r.ec)}</div></div></div>`);
+   });
+   html+='</div>'; reportOutput.innerHTML=html; return;
+ }
+ if(reportType==='fleet-all'){
+   const vs=(db.vehicles||[]).slice().sort((a,b)=>String(a.reg||a.no||'').localeCompare(String(b.reg||b.no||'')));
+   const seen=new Set();
+   const ssAll=(db.services||[]).filter(x=>inRange(x.date)).filter(x=>{const k=serviceEventKey(x);if(seen.has(k))return false;seen.add(k);return true;});
+   const bsAll=(db.breakdowns||[]).filter(x=>inRange(x.date)), jsAll=(db.jobs||[]).filter(x=>inRange(x.date)), esAll=(db.expenses||[]).filter(x=>inRange(x.date)), dsAll=db.documents||[];
+   const table=(heads,rows,empty)=>rows.length?`<div style="overflow:auto"><table><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr>${rows.join('')}</table></div>`:`<p>${empty}</p>`;
+   let html=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">COMPLETE FLEET REPORT — ALL VEHICLES</div></div></div><p><b>Vehicles:</b> ${vs.length} &nbsp; <b>Period:</b> ${esc(from||'All time')} to ${esc(to||'Present')}</p>`;
+   vs.forEach((v,i)=>{
+     const d=(db.drivers||[]).find(x=>x.vehicleId===v.id), pair=(db.pairs||[]).find(x=>x.horseId===v.id), tr=pair?(db.trailers||[]).find(x=>x.id===pair.trailerId):null;
+     const ss=ssAll.filter(x=>x.vehicleId===v.id), bs=bsAll.filter(x=>x.vehicleId===v.id), js=jsAll.filter(x=>x.vehicleId===v.id), es=esAll.filter(x=>x.vehicleId===v.id), ds=dsAll.filter(x=>x.vehicleId===v.id);
+     const jc=js.reduce((a,x)=>a+Number(x.cost||0),0), ec=es.reduce((a,x)=>a+Number(x.amount||0),0);
+     html+=`<div class="panel fleet-report-section" style="margin-top:18px"><h2 style="margin-top:0">${i+1}. ${esc(v.reg||v.vehicleNumber||v.no||'Vehicle')}</h2><div class="grid3"><div><label>Vehicle Number</label><b>${esc(v.reg||v.vehicleNumber||'-')}</b></div><div><label>Fleet Number</label><b>${esc(v.no||'-')}</b></div><div><label>Vehicle Type</label><b>${esc(v.type||'-')}</b></div><div><label>Assigned Driver</label>${d?esc(d.name||'-')+' — '+esc(d.phone||'-'):'-'}</div><div><label>Paired Trailer</label>${tr?esc(tr.no||'-')+' — '+esc(tr.reg||'-'):'-'}</div><div><label>Total Spent</label><b>${money(jc+ec)}</b></div></div>
+     <h3>Service History (${ss.length})</h3>${table(['Date','Mileage','Work / Notes','Next Service','Serviced By'],ss.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))).map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${x.km==null?'-':Number(x.km).toLocaleString()}</td><td>${esc(x.work||x.notes||'-')}</td><td>${x.nextKm==null||x.nextKm===''?'-':Number(x.nextKm).toLocaleString()}</td><td>${esc(x.servicedBy||'-')}</td></tr>`),'No service history.')}
+     <h3>Breakdown History (${bs.length})</h3>${table(['Date','Type','Severity','Status','Location','Repair Cost','Repair / Action'],bs.map(x=>`<tr><td>${esc(x.date||'-')}${x.time?' '+esc(x.time):''}</td><td>${esc(x.type||'-')}</td><td>${esc(x.severity||'-')}</td><td>${esc(x.status||'-')}</td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td>${esc(x.repair||'-')}</td></tr>`),'No breakdown history.')}
+     <h3>Tax / Fitness / Insurance (${ds.length})</h3>${table(['Type','Issue Date','Expiry / Due','Reminder','Reference'],ds.sort((a,b)=>String(a.expiryDate||'').localeCompare(String(b.expiryDate||''))).map(x=>`<tr><td>${esc(x.type||'-')}</td><td>${esc(x.issueDate||'-')}</td><td>${esc(x.expiryDate||'-')}</td><td>${Number(x.reminderDays||0)} days</td><td>${esc(x.ref||'-')}</td></tr>`),'No tax, fitness or insurance records.')}
+     <h3>Job Cards (${js.length})</h3>${table(['Date','Job Card','Problem','Work Done','Finished','Days','Status','Cost'],js.map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${esc(x.no||'-')}</td><td>${esc(x.problem||'-')}</td><td>${esc(x.work||'-')}</td><td>${esc(x.dateFinished||'-')}</td><td>${esc(x.daysTaken??'-')}</td><td>${esc(x.status||'-')}</td><td>${money(x.cost)}</td></tr>`),'No job cards.')}
+     <h3>Expenses (${es.length})</h3>${table(['Date','Category','Payee','Reference','Description','Amount'],es.map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${esc(x.cat||'-')}</td><td>${esc(x.payee||'-')}</td><td>${esc(x.ref||'-')}</td><td>${esc(x.desc||'-')}</td><td>${money(x.amount)}</td></tr>`),'No expenses.')}
+     <div class="cards" style="margin-top:12px"><div class="card"><div class="label">Job Costs</div><div class="metric">${money(jc)}</div></div><div class="card"><div class="label">Expenses</div><div class="metric">${money(ec)}</div></div><div class="card"><div class="label">Total Spent</div><div class="metric">${money(jc+ec)}</div></div></div></div>`;
+   });
+   reportOutput.innerHTML=html+'</div>'; return;
+ }
  let id=rVehicle.value;if(!id){reportOutput.innerHTML='<div class="panel"><div class="empty">Select a vehicle to generate its report.</div></div>';return}
  let v=db.vehicles.find(x=>x.id===id);
  let jobs=db.jobs.filter(j=>j.vehicleId===id&&(!from||j.date>=from)&&(!to||j.date<=to)).sort((a,b)=>a.date.localeCompare(b.date));
@@ -1646,6 +1698,76 @@ ${db.documents.filter(x=>x.vehicleId===v.id).length?`<table><tr><th>Type</th><th
 <h2 style="margin-top:24px;font-weight:800">EXPENSE HISTORY (${ex.length})</h2>${ex.length?`<table><tr><th>Date</th><th>Category</th><th>Payee</th><th>Reference</th><th>Description</th><th>Amount</th></tr>${ex.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.cat)}</td><td>${esc(e.payee)}</td><td>${esc(e.ref)}</td><td>${esc(e.desc)}</td><td>${money(e.amount)}</td></tr>`).join('')}</table>`:'<p>No expenses in this period.</p>'}
  <div class="cards" style="margin-top:20px"><div class="card"><div class="label">Job Costs</div><div class="metric">${money(jc)}</div></div><div class="card"><div class="label">Other Expenses</div><div class="metric">${money(ec)}</div></div><div class="card"><div class="label">Total Vehicle Cost</div><div class="metric">${money(jc+ec)}</div></div></div></div>`
 }
+function renderCompleteFleetReport(){
+  const from=document.getElementById('rFrom')?.value||'', to=document.getElementById('rTo')?.value||'';
+  const inRange=d=>(!from||!d||String(d)>=from)&&(!to||!d||String(d)<=to);
+  const vehicles=(db.vehicles||[]).slice().sort((a,b)=>String(vehicleNumber(a)).localeCompare(String(vehicleNumber(b))));
+  const seenServices=new Set();
+  const services=(db.services||[]).filter(x=>inRange(x.date)).filter(x=>{
+    const key=serviceEventKey(x);
+    if(seenServices.has(key)) return false;
+    seenServices.add(key); return true;
+  });
+  const breakdowns=(db.breakdowns||[]).filter(x=>inRange(x.date));
+  const jobs=(db.jobs||[]).filter(x=>inRange(x.date));
+  const expenses=(db.expenses||[]).filter(x=>inRange(x.date));
+  const documents=(db.documents||[]);
+  const drivers=db.drivers||[], trailers=db.trailers||[], pairs=db.pairs||[];
+  const table=(heads,rows,empty)=>rows.length
+    ? `<div style="overflow:auto"><table><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr>${rows.join('')}</table></div>`
+    : `<p>${empty}</p>`;
+
+  let html=`<div class="panel"><div class="report-header"><div><div class="report-company">FLEET-OPS</div><div class="report-subtitle">COMPLETE FLEET REPORT — ALL VEHICLES</div></div></div><p><b>Vehicles:</b> ${vehicles.length} &nbsp; <b>Period:</b> ${esc(from||'All time')} to ${esc(to||'Present')}</p>`;
+
+  vehicles.forEach((v,i)=>{
+    const d=drivers.find(x=>x.vehicleId===v.id);
+    const pair=pairs.find(x=>x.horseId===v.id || x.vehicleId===v.id);
+    const tr=pair?trailers.find(x=>x.id===pair.trailerId):null;
+    const ss=services.filter(x=>x.vehicleId===v.id);
+    const bs=breakdowns.filter(x=>x.vehicleId===v.id);
+    const js=jobs.filter(x=>x.vehicleId===v.id);
+    const es=expenses.filter(x=>x.vehicleId===v.id);
+    const ds=documents.filter(x=>x.vehicleId===v.id);
+    const jobCost=js.reduce((a,x)=>a+Number(x.cost||0),0);
+    const expenseTotal=es.reduce((a,x)=>a+Number(x.amount||0),0);
+    const reg=vehicleNumber(v);
+
+    html+=`<div class="panel fleet-report-section" style="margin-top:18px">
+      <h2 style="margin-top:0">${i+1}. ${esc(reg)}</h2>
+      <div class="grid3">
+        <div><label>Vehicle Number</label><b>${esc(reg)}</b></div>
+        <div><label>Fleet Number</label><b>${esc(v.no||'-')}</b></div>
+        <div><label>Vehicle Type</label><b>${esc(v.type||'-')}</b></div>
+        <div><label>Assigned Driver</label><b>${d?esc(d.name||'-')+' — '+esc(d.phone||'-'):'-'}</b></div>
+        <div><label>Paired Trailer</label><b>${tr?esc(tr.no||'-')+' — '+esc(tr.reg||'-'):'-'}</b></div>
+        <div><label>Total Spent</label><b>${money(jobCost+expenseTotal)}</b></div>
+      </div>
+      <h3>Service History (${ss.length})</h3>
+      ${table(['Date','Mileage','Work / Notes','Next Service','Serviced By'],ss.slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))).map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${x.km==null||x.km===''?'-':Number(x.km).toLocaleString()}</td><td>${esc(x.work||x.notes||'-')}</td><td>${x.nextKm==null||x.nextKm===''?'-':Number(x.nextKm).toLocaleString()}</td><td>${esc(x.servicedBy||'-')}</td></tr>`),'No service history.')}
+      <h3>Breakdown History (${bs.length})</h3>
+      ${table(['Date','Type','Severity','Status','Location','Repair Cost','Repair / Action'],bs.slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))).map(x=>`<tr><td>${esc(x.date||'-')}${x.time?' '+esc(x.time):''}</td><td>${esc(x.type||'-')}</td><td>${esc(x.severity||'-')}</td><td>${esc(x.status||'-')}</td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td>${esc(x.repair||x.description||'-')}</td></tr>`),'No breakdown history.')}
+      <h3>Tax / Fitness / Insurance (${ds.length})</h3>
+      ${table(['Type','Issue Date','Expiry / Due','Reminder','Reference'],ds.slice().sort((a,b)=>String(a.expiryDate||'').localeCompare(String(b.expiryDate||''))).map(x=>`<tr><td>${esc(x.type||'-')}</td><td>${esc(x.issueDate||'-')}</td><td>${esc(x.expiryDate||'-')}</td><td>${Number(x.reminderDays||0)} days</td><td>${esc(x.ref||'-')}</td></tr>`),'No tax, fitness or insurance records.')}
+      <h3>Job Cards (${js.length})</h3>
+      ${table(['Date','Job Card','Problem','Work Done','Finished','Days','Status','Cost'],js.slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))).map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${esc(x.no||'-')}</td><td>${esc(x.problem||'-')}</td><td>${esc(x.work||'-')}</td><td>${esc(x.dateFinished||'-')}</td><td>${esc(x.daysTaken??'-')}</td><td>${esc(x.status||'-')}</td><td>${money(x.cost)}</td></tr>`),'No job cards.')}
+      <h3>Expenses (${es.length})</h3>
+      ${table(['Date','Category','Payee','Reference','Description','Amount'],es.slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))).map(x=>`<tr><td>${esc(x.date||'-')}</td><td>${esc(x.cat||'-')}</td><td>${esc(x.payee||'-')}</td><td>${esc(x.ref||'-')}</td><td>${esc(x.desc||'-')}</td><td>${money(x.amount)}</td></tr>`),'No expenses.')}
+      <div class="cards" style="margin-top:12px"><div class="card"><div class="label">Job Costs</div><div class="metric">${money(jobCost)}</div></div><div class="card"><div class="label">Expenses</div><div class="metric">${money(expenseTotal)}</div></div><div class="card"><div class="label">Total Spent</div><div class="metric">${money(jobCost+expenseTotal)}</div></div></div>
+    </div>`;
+  });
+  html+='</div>';
+  document.getElementById('reportOutput').innerHTML=html;
+}
+
+function renderReport(){
+  const type=document.getElementById('rReportType')?.value||'service-one';
+  if(type==='fleet-all'){
+    renderCompleteFleetReport();
+    return;
+  }
+  renderReportLegacy();
+}
+
 function printReport(){
  document.getElementById('reports').classList.add('printing');
  window.print();
@@ -1753,11 +1875,24 @@ async function exportFleetExcel(kind){
     addSheet('Expenses',vehicleExpenseRows);
   }
   if(kind==='fleet-all'){
-    addSheet('Vehicles',vehicles.map(v=>({'Vehicle Number':v.reg||v.no||'','Fleet Number':v.no||'','Vehicle Type':v.type||''})));
-    addSheet('Service History',services.filter(s=>inRange(s.date)).map(s=>({'Vehicle Number':excelVehicleNumber(s.vehicleId),'Service Date':s.date||'','Mileage at Service (km)':s.km??'','Next Service Mileage (km)':s.nextKm??'','Work / Notes':s.work||'','Serviced By':s.servicedBy||''})));
-    addSheet('Job Cards',jobs.filter(j=>inRange(j.date)).map(j=>({'Vehicle Number':excelVehicleNumber(j.vehicleId),'Date':j.date||'','Job Card Number':j.no||'','Odometer (km)':j.odo??'','Status':j.status||'','Date Finished':j.dateFinished||'','Days Taken':j.daysTaken??'','Work Done':j.work||'','Parts Used':j.parts||'','Total (K)':Number(j.cost||0)})));
-    const fleetExpenseRows=expenses.filter(e=>inRange(e.date)).map(e=>({'Vehicle Number':excelVehicleNumber(e.vehicleId),'Date':e.date||'','Category':e.cat||'','Payee':e.payee||'','Invoice / Reference':e.ref||'','Amount (K)':Number(e.amount||0)}));
-    fleetExpenseRows.push({'Vehicle Number':'TOTAL EXPENSES','Date':'','Category':'','Payee':'','Invoice / Reference':'','Amount (K)':fleetExpenseRows.reduce((sum,r)=>sum+Number(r['Amount (K)']||0),0)});
+    const svcSeen=new Set();
+    const fleetServices=services.filter(s=>inRange(s.date)).filter(s=>{const k=serviceEventKey(s);if(svcSeen.has(k))return false;svcSeen.add(k);return true;});
+    const summary=vehicles.map(v=>{
+      const d=(db.drivers||[]).find(x=>x.vehicleId===v.id); const pair=(db.pairs||[]).find(x=>x.horseId===v.id); const tr=pair?(db.trailers||[]).find(x=>x.id===pair.trailerId):null;
+      const ss=fleetServices.filter(x=>x.vehicleId===v.id),bs=breakdowns.filter(x=>x.vehicleId===v.id&&inRange(x.date)),js=jobs.filter(x=>x.vehicleId===v.id&&inRange(x.date)),es=expenses.filter(x=>x.vehicleId===v.id&&inRange(x.date)),ds=(db.documents||[]).filter(x=>x.vehicleId===v.id);
+      const jc=js.reduce((a,x)=>a+Number(x.cost||0),0),ec=es.reduce((a,x)=>a+Number(x.amount||0),0);
+      return {'Vehicle Number':v.reg||v.vehicleNumber||'','Fleet Number':v.no||'','Vehicle Type':v.type||'','Assigned Driver':d?d.name||'':'-','Driver Phone':d?d.phone||'':'-','Trailer':tr?tr.no||'':'-','Trailer Registration':tr?tr.reg||'':'-','Services':ss.length,'Breakdowns':bs.length,'Tax/Fitness/Insurance Records':ds.length,'Job Cards':js.length,'Expenses':es.length,'Job Costs (K)':jc,'Expenses Total (K)':ec,'Total Spent (K)':jc+ec};
+    });
+    addSheet('Fleet Summary',summary);
+    addSheet('Vehicles',vehicles.map(v=>({'Vehicle Number':v.reg||v.vehicleNumber||'','Fleet Number':v.no||'','Vehicle Type':v.type||''})));
+    addSheet('Drivers',vehicles.map(v=>{const d=(db.drivers||[]).find(x=>x.vehicleId===v.id);return {'Vehicle Number':v.reg||v.vehicleNumber||'','Fleet Number':v.no||'','Driver Name':d?.name||'-','Driver Phone':d?.phone||'-'};}));
+    addSheet('Trailers',vehicles.map(v=>{const p=(db.pairs||[]).find(x=>x.horseId===v.id);const t=p?(db.trailers||[]).find(x=>x.id===p.trailerId):null;return {'Vehicle Number':v.reg||v.vehicleNumber||'','Fleet Number':v.no||'','Trailer Number':t?.no||'-','Trailer Registration':t?.reg||'-','Trailer Type':t?.type||'-'};}));
+    addSheet('Service History',fleetServices.map(s=>({'Vehicle Number':excelVehicleNumber(s.vehicleId)||s.vehicleRef||'','Service Date':s.date||'','Mileage at Service (km)':s.km??'','Next Service Mileage (km)':s.nextKm??'','Work / Notes':s.work||s.notes||'','Serviced By':s.servicedBy||''})));
+    addSheet('Breakdown History',breakdowns.filter(b=>inRange(b.date)).map(b=>({'Vehicle Number':excelVehicleNumber(b.vehicleId),'Breakdown Date':b.date||'','Breakdown Time':b.time||'','Odometer (km)':b.km??'','Breakdown Type':b.type||'','Severity':b.severity||'','Status':b.status||'','Location':b.location||'','Driver / Reported By':b.driver||'','Recovery / Towing':b.recovery||'','Repair Cost (K)':Number(b.cost||0),'Parts Used':b.parts||'','Repair / Action':b.repair||''})));
+    addSheet('Tax Fitness Insurance',(db.documents||[]).map(d=>({'Vehicle Number':excelVehicleNumber(d.vehicleId),'Document Type':d.type||'','Issue Date':d.issueDate||'','Expiry / Due Date':d.expiryDate||'','Reminder Days':Number(d.reminderDays||0),'Reference / Policy No.':d.ref||'','Notes':d.notes||''})));
+    addSheet('Job Cards',jobs.filter(j=>inRange(j.date)).map(j=>({'Vehicle Number':excelVehicleNumber(j.vehicleId),'Date':j.date||'','Job Card Number':j.no||'','Odometer (km)':j.odo??'','Status':j.status||'','Date Finished':j.dateFinished||'','Days Taken':j.daysTaken??'','Problem':j.problem||'','Work Done':j.work||'','Parts Used':j.parts||'','Total (K)':Number(j.cost||0)})));
+    const fleetExpenseRows=expenses.filter(e=>inRange(e.date)).map(e=>({'Vehicle Number':excelVehicleNumber(e.vehicleId),'Date':e.date||'','Category':e.cat||'','Payee':e.payee||'','Invoice / Reference':e.ref||'','Description':e.desc||'','Amount (K)':Number(e.amount||0)}));
+    fleetExpenseRows.push({'Vehicle Number':'TOTAL EXPENSES','Date':'','Category':'','Payee':'','Invoice / Reference':'','Description':'','Amount (K)':fleetExpenseRows.reduce((sum,r)=>sum+Number(r['Amount (K)']||0),0)});
     addSheet('Expenses',fleetExpenseRows);
   }
 
@@ -2089,12 +2224,6 @@ function importPairsExcel(input){
 try{renderVehicles();renderTrailers();}catch(e){}
 /* Cloud startup is handled by the full-screen login gate. */
 </script>
-
-<div id="fleetImportTools" class="panel no-print" style="margin:18px 0">
-  <h3>Excel</h3>
-  <p class="sub">Excel is now export-only. Use <b>Reports</b> to choose the report you want and create an Excel file for one vehicle or the entire fleet.</p>
-</div>
-
 
 <div id="cloudFullScreenLogin" style="display:none;position:fixed;inset:0;z-index:2147483647;background:linear-gradient(135deg,#0f172a,#1e3a5f);align-items:center;justify-content:center;padding:24px;box-sizing:border-box">
   <div style="width:min(440px,100%);background:#fff;border-radius:20px;padding:34px;box-shadow:0 25px 80px rgba(0,0,0,.35);box-sizing:border-box">
