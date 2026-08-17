@@ -1191,7 +1191,7 @@ function ensureDbShape(){
   return db;
 }
 ensureDbShape();
-const save=()=>{ensureDbShape();normalizeServiceHistory();persistDb();refresh()};
+const save=()=>{ensureDbShape();normalizeServiceHistory();persistDb();refresh();notifyReminders()};
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const money=n=>'K'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const today=()=>new Date().toISOString().slice(0,10);
@@ -1432,6 +1432,31 @@ function renderDocuments(){
     </tr>`;
   }).join('')}</table>`:'<div class="empty">No tax, fitness or insurance records found.</div>';
 }
+
+function renderReminders(){
+  const el=document.getElementById('reminders');
+  if(!el)return;
+  const rows=collectReminders();
+
+  if(!rows.length){
+    el.innerHTML='<div class="empty">No active reminders.</div>';
+    return;
+  }
+
+  el.innerHTML='<div style="display:grid;gap:10px">'+rows.map(r=>{
+    const cls=r.days<0||r.days===0||r.days<=r.reminderDays?'open':'done';
+    const status=r.days<0
+      ? `${Math.abs(r.days)} day(s) overdue`
+      : r.days===0
+        ? 'Due today'
+        : `Expires in ${r.days} day(s)`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:10px">
+      <div><b>${esc(r.title)}</b><div class="muted">${esc(status)} · Reminder ${r.reminderDays} days before</div></div>
+      <span class="badge ${cls}">${r.days<0?'OVERDUE':r.days===0?'TODAY':r.days+' days'}</span>
+    </div>`;
+  }).join('')}</div>';
+}
+
 function collectReminders(){
   const out=[];
   (db.documents||[]).forEach(x=>{
@@ -1460,36 +1485,43 @@ function notifyReminders(){
   const currentKeys=new Set(rows.map(reminderNotificationKey));
   const logged=getNotificationLog();
 
-  // Keep only notifications that still correspond to a currently active reminder.
-  // This removes old entries when a document is renewed, edited, deleted, or its
-  // reminder period is changed.
+  // Keep only the notification states that still exist in the CURRENT database.
+  // Editing, renewing, deleting, or changing the reminder period therefore
+  // immediately removes the old state.
   const activeLogged=logged.filter(x=>currentKeys.has(String(x.key||'')));
+  const existingKeys=new Set(activeLogged.map(x=>String(x.key||'')));
   const newlyCreated=[];
 
-  rows.slice(0,15).forEach(r=>{
+  // Create a current notification state for EVERY active reminder, not just the
+  // first 15. The dashboard and notification center therefore always stay complete.
+  rows.forEach(r=>{
     const key=reminderNotificationKey(r);
-    if(!activeLogged.some(x=>x.key===key)){
+    if(!existingKeys.has(key)){
       const item={
         id:Date.now()+'-'+Math.random(),
         key,
+        recordId:r.recordId,
         title:'Fleet-Ops Reminder',
         text:r.title+' — '+r.text,
         date:new Date().toLocaleString()
       };
       activeLogged.unshift(item);
+      existingKeys.add(key);
       newlyCreated.push(r);
     }
   });
 
-  // Save the reconciled notification list even when there are zero reminders.
+  // Keep current reminders sorted with the newest generated states first.
   saveNotificationLog(activeLogged);
+  renderReminders();
   updateNotificationBadge();
   refreshNotificationCenter();
 
-  // Browser notifications are sent only for genuinely new/current reminder states,
-  // never repeatedly for an old record every hour.
+  // Browser notifications only fire for a genuinely new CURRENT reminder state.
   if('Notification' in window && Notification.permission==='granted'){
-    newlyCreated.slice(0,5).forEach(r=>new Notification('Fleet-Ops Reminder',{body:r.title+' — '+r.text}));
+    newlyCreated.slice(0,5).forEach(r=>{
+      new Notification('Fleet-Ops Reminder',{body:r.title+' — '+r.text});
+    });
   }
 }
 function requestReminderPermission(){
@@ -2032,7 +2064,7 @@ setInterval(updateClock,60000);
 refresh();
 try{syncReportControls();}catch(e){}
 setTimeout(()=>{ requestReminderPermission(); notifyReminders(); }, 1200);
-setInterval(()=>{ notifyReminders(); }, 3600000);
+setInterval(()=>{ renderReminders(); notifyReminders(); }, 60000);
 
 const NOTIFICATION_LOG_KEY='oasisOilFleet_notifications_v1';
 
