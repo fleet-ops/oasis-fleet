@@ -1057,7 +1057,6 @@ function seedRoadTax2027(){
   });
   persistDb();
 }
-db.documents.forEach(d=>{ if(d && (d.type==='Road Tax'||d.type==='Fitness'||d.type==='Insurance')) d.reminderDays=15; });
 db.trailers=Array.isArray(db.trailers)?db.trailers:[];
 seedRoadTax2027();
 db.pairs=Array.isArray(db.pairs)?db.pairs:[];
@@ -1247,11 +1246,12 @@ function dateDiffDays(dateStr){
   const t=new Date(); t.setHours(0,0,0,0);
   return Math.ceil((d-t)/86400000);
 }
-function reminderBadge(days, label){
+function reminderBadge(days, label, reminderDays){
   if(days===null)return '<span class="badge">No date</span>';
+  const r=Math.max(0,Number(reminderDays??0));
   if(days<0)return '<span class="badge open">OVERDUE</span>';
   if(days===0)return '<span class="badge open">DUE TODAY</span>';
-  if(days<=7)return '<span class="badge open">'+days+' day'+(days===1?'':'s')+'</span>';
+  if(days<=r)return '<span class="badge open">'+days+' day'+(days===1?'':'s')+'</span>';
   return '<span class="badge done">'+days+' days</span>';
 }
 function getCurrentOdometer(vehicleId){
@@ -1423,7 +1423,7 @@ function renderDocuments(){
     return `<tr>
       <td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type)}</td>
       <td>${esc(x.issueDate)}</td><td>${esc(x.expiryDate)}</td>
-      <td>${reminderBadge(days,x.type)}<br><small>Reminder: ${Number(x.reminderDays||0)} days before</small></td>
+      <td>${reminderBadge(days,x.type,x.reminderDays)}<br><small>Reminder: ${Number(x.reminderDays||0)} days before</small></td>
       <td>${esc(x.ref||'-')}<br><small>${esc(x.notes||'')}</small></td>
       <td><button class="primary edit-action" type="button" onclick="editDocument('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteDocument('${x.id}')">Delete</button></td>
     </tr>`;
