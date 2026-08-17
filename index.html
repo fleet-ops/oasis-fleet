@@ -116,6 +116,17 @@ html[data-theme="dark"] .panel,html[data-theme="dark"] .card{background:rgba(17,
 
 <style id="job-edit-style">
 
+#serviceEditModal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px;box-sizing:border-box}
+#serviceEditModal.show{display:flex}
+#serviceEditModal .service-edit-box{background:#fff;width:min(760px,100%);max-height:92vh;overflow:auto;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+#serviceEditModal .service-edit-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+#serviceEditModal .service-edit-header h2{margin:0}
+#serviceEditModal .service-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#serviceEditModal label{display:block;font-weight:700;margin-bottom:6px}
+#serviceEditModal input,#serviceEditModal select,#serviceEditModal textarea{width:100%;box-sizing:border-box}
+#serviceEditModal textarea{min-height:90px;resize:vertical}
+#serviceEditModal .service-edit-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+@media(max-width:700px){#serviceEditModal .service-edit-grid{grid-template-columns:1fr}}
 #expenseEditModal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px;box-sizing:border-box}
 #expenseEditModal.show{display:flex}
 #expenseEditModal .expense-edit-box{background:#fff;width:min(760px,100%);max-height:92vh;overflow:auto;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
@@ -152,6 +163,37 @@ body.dark-mode table, body.dark-mode td, body.dark-mode th, body.dark-mode label
 body.dark-mode .muted, body.dark-mode .text-muted, body.dark-mode small { color: #b8c2d1 !important; }
 body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, body.dark-mode h4, body.dark-mode h5, body.dark-mode h6 { color: #f7f9fc !important; }
 body.dark-mode a { color: #8fc5ff !important; }
+</style>
+
+<style id="consistent-action-buttons">
+#expenseTable td:last-child button,
+#serviceTable td:last-child button{
+  min-width:72px;
+  font-weight:700;
+  border-radius:8px;
+  padding:8px 12px;
+  line-height:1;
+}
+#expenseTable td:last-child,
+#serviceTable td:last-child{
+  white-space:nowrap;
+}
+</style>
+
+<style id="unified-edit-modal-style">
+#unifiedEditModal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:10050;padding:16px;box-sizing:border-box}
+#unifiedEditModal.show{display:flex}
+#unifiedEditModal .unified-edit-box{background:#fff;width:min(780px,100%);max-height:92vh;overflow:auto;border-radius:16px;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.28);animation:editModalIn .18s ease-out}
+#unifiedEditModal .unified-edit-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+#unifiedEditModal .unified-edit-header h2{margin:0;font-size:21px}
+#unifiedEditModal .unified-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#unifiedEditModal label{display:block;font-weight:700;margin-bottom:6px}
+#unifiedEditModal input,#unifiedEditModal select,#unifiedEditModal textarea{width:100%;box-sizing:border-box}
+#unifiedEditModal textarea{min-height:90px;resize:vertical}
+#unifiedEditModal .unified-edit-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+@keyframes editModalIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+@media(max-width:700px){#unifiedEditModal .unified-edit-grid{grid-template-columns:1fr}}
+.edit-action{display:inline-flex;align-items:center;justify-content:center;min-width:58px}
 </style>
 </head>
 <body>
@@ -1123,6 +1165,37 @@ function addService(){
   ['sDate','sKm','sNextKm','sWork','sServicedBy'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   save();
 }
+function openServiceEdit(id){
+  const x=(db.services||[]).find(s=>s.id===id); if(!x)return;
+  document.getElementById('editServiceId').value=x.id;
+  const vs=document.getElementById('editServiceVehicle');
+  vs.innerHTML='<option value="">Select vehicle</option>'+(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}">${esc(vehicleNumber(v))}</option>`).join('');
+  vs.value=x.vehicleId||'';
+  document.getElementById('editServiceDate').value=x.date||'';
+  document.getElementById('editServiceKm').value=x.km??'';
+  document.getElementById('editServiceNextKm').value=x.nextKm??'';
+  document.getElementById('editServiceWork').value=x.work||'';
+  document.getElementById('editServiceNotes').value=x.notes||'';
+  document.getElementById('editServiceServicedBy').value=x.servicedBy||'';
+  const m=document.getElementById('serviceEditModal'); m.classList.add('show'); m.setAttribute('aria-hidden','false');
+}
+function closeServiceEdit(){const m=document.getElementById('serviceEditModal');m.classList.remove('show');m.setAttribute('aria-hidden','true')}
+function saveServiceEdit(){
+  const id=document.getElementById('editServiceId').value; const x=(db.services||[]).find(s=>s.id===id); if(!x)return;
+  const vehicleId=document.getElementById('editServiceVehicle').value;
+  const date=document.getElementById('editServiceDate').value;
+  const km=Number(document.getElementById('editServiceKm').value||0);
+  const nextKm=Number(document.getElementById('editServiceNextKm').value||0);
+  if(!vehicleId)return alert('Select a vehicle.');
+  if(!date)return alert('Enter the service date.');
+  if(!km)return alert('Enter the odometer reading at service.');
+  if(nextKm<km)return alert('Next service km cannot be lower than the service km.');
+  const candidate={...x,vehicleId,date,km,nextKm,work:document.getElementById('editServiceWork').value.trim(),notes:document.getElementById('editServiceNotes').value.trim(),servicedBy:document.getElementById('editServiceServicedBy').value.trim()};
+  const duplicate=(db.services||[]).some(s=>s.id!==id && serviceEventKey(s)===serviceEventKey(candidate));
+  if(duplicate)return alert('Another identical service record already exists for this vehicle.');
+  Object.assign(x,candidate);
+  closeServiceEdit(); save();
+}
 function deleteService(id){
   if(confirm('Delete this service record?')){db.services=db.services.filter(x=>x.id!==id);save();}
 }
@@ -1142,7 +1215,7 @@ function renderServices(){
       <td>${esc(x.work||'-')}<br><small>${esc(x.notes||'')}</small></td>
       <td>${nextKm===null||Number.isNaN(nextKm)?'-':nextKm.toLocaleString()+' km'}</td>
       <td>${esc(x.servicedBy||'-')}</td>
-      <td><button class="danger" onclick="deleteService('${x.id}')">Delete</button></td>
+      <td><button class="primary" type="button" onclick="event.stopPropagation();openServiceEdit('${x.id}')">Edit</button> <button class="danger" onclick="event.stopPropagation();deleteService('${x.id}')">Delete</button></td>
     </tr>`;
   }).join('')}</table>`:'<div class="empty">No service records found.</div>';
 }
@@ -1157,11 +1230,33 @@ function addBreakdown(){
   save();
 }
 function deleteBreakdown(id){if(confirm('Delete this breakdown record?')){db.breakdowns=db.breakdowns.filter(x=>x.id!==id);save();}}
+function editBreakdown(id){
+  const x=(db.breakdowns||[]).find(b=>b.id===id); if(!x)return;
+  const opts=(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===x.vehicleId?'selected':''}>${esc(vehicleNumber(v))}</option>`).join('');
+  openUnifiedEdit('breakdown',id,'Edit Breakdown',`<div class="unified-edit-grid">
+    <div><label>Vehicle</label><select id="ueBreakVehicle">${opts}</select></div>
+    <div><label>Date</label><input type="date" id="ueBreakDate" value="${esc(x.date||'')}"></div>
+    <div><label>Time</label><input type="time" id="ueBreakTime" value="${esc(x.time||'')}"></div>
+    <div><label>Odometer (km)</label><input type="number" id="ueBreakKm" value="${x.km??''}"></div>
+    <div><label>Breakdown Type</label><input id="ueBreakType" value="${esc(x.type||'')}"></div>
+    <div><label>Severity</label><input id="ueBreakSeverity" value="${esc(x.severity||'')}"></div>
+    <div><label>Status</label><input id="ueBreakStatus" value="${esc(x.status||'')}"></div>
+    <div><label>Location</label><input id="ueBreakLocation" value="${esc(x.location||'')}"></div>
+    <div><label>Driver</label><input id="ueBreakDriver" value="${esc(x.driver||'')}"></div>
+    <div><label>Recovery</label><input id="ueBreakRecovery" value="${esc(x.recovery||'')}"></div>
+    <div><label>Repair Cost (K)</label><input type="number" step="0.01" id="ueBreakCost" value="${x.cost??0}"></div>
+  </div><div style="margin-top:14px"><label>Parts Used</label><textarea id="ueBreakParts">${esc(x.parts||'')}</textarea></div><div style="margin-top:14px"><label>Repair / Corrective Action</label><textarea id="ueBreakRepair">${esc(x.repair||'')}</textarea></div>`);
+}
+function saveBreakdownEdit(id){
+ const x=(db.breakdowns||[]).find(b=>b.id===id);if(!x)return;
+ x.vehicleId=document.getElementById('ueBreakVehicle').value;x.date=document.getElementById('ueBreakDate').value;x.time=document.getElementById('ueBreakTime').value;x.km=document.getElementById('ueBreakKm').value?Number(document.getElementById('ueBreakKm').value):null;x.type=document.getElementById('ueBreakType').value.trim();x.severity=document.getElementById('ueBreakSeverity').value.trim();x.status=document.getElementById('ueBreakStatus').value.trim();x.location=document.getElementById('ueBreakLocation').value.trim();x.driver=document.getElementById('ueBreakDriver').value.trim();x.recovery=document.getElementById('ueBreakRecovery').value.trim();x.cost=Number(document.getElementById('ueBreakCost').value||0);x.parts=document.getElementById('ueBreakParts').value.trim();x.repair=document.getElementById('ueBreakRepair').value.trim();closeUnifiedEdit();save();renderBreakdowns();
+}
+
 function renderBreakdowns(){
   db.breakdowns=db.breakdowns||[];
   let q=(breakdownSearch?.value||'').toLowerCase().trim();
   let rows=db.breakdowns.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
-  breakdownTable.innerHTML=rows.length?`<table><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Severity</th><th>Status</th><th>Location</th><th>Repair Cost</th><th>Actions</th></tr>${rows.map(x=>`<tr><td>${esc(x.date||'')}${x.time?' '+esc(x.time):''}</td><td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type||'')}</td><td>${esc(x.severity||'')}</td><td><span class="badge ${x.status==='Completed'?'done':'open'}">${esc(x.status||'')}</span></td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td><button class="danger" onclick="deleteBreakdown('${x.id}')">Delete</button></td></tr>`).join('')}</table>`:'<div class="empty">No breakdown records found.</div>';
+  breakdownTable.innerHTML=rows.length?`<table><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Severity</th><th>Status</th><th>Location</th><th>Repair Cost</th><th>Actions</th></tr>${rows.map(x=>`<tr><td>${esc(x.date||'')}${x.time?' '+esc(x.time):''}</td><td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type||'')}</td><td>${esc(x.severity||'')}</td><td><span class="badge ${x.status==='Completed'?'done':'open'}">${esc(x.status||'')}</span></td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td><button class="primary edit-action" type="button" onclick="editBreakdown('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteBreakdown('${x.id}')">Delete</button></td></tr>`).join('')}</table>`:'<div class="empty">No breakdown records found.</div>';
 }
 function addDocument(){
   if(!dVehicle.value)return alert('Select a vehicle.');
@@ -1179,6 +1274,23 @@ function addDocument(){
 function deleteDocument(id){
   if(confirm('Delete this compliance record?')){db.documents=db.documents.filter(x=>x.id!==id);save();}
 }
+function editDocument(id){
+ const x=(db.documents||[]).find(d=>d.id===id);if(!x)return;
+ const opts=(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===x.vehicleId?'selected':''}>${esc(vehicleNumber(v))}</option>`).join('');
+ openUnifiedEdit('document',id,'Edit Compliance Record',`<div class="unified-edit-grid">
+  <div><label>Vehicle</label><select id="ueDocVehicle">${opts}</select></div>
+  <div><label>Document Type</label><input id="ueDocType" value="${esc(x.type||'')}"></div>
+  <div><label>Issue Date</label><input type="date" id="ueDocIssue" value="${esc(x.issueDate||'')}"></div>
+  <div><label>Expiry Date</label><input type="date" id="ueDocExpiry" value="${esc(x.expiryDate||'')}"></div>
+  <div><label>Reminder (days before)</label><input type="number" min="0" id="ueDocReminder" value="${Number(x.reminderDays||0)}"></div>
+  <div><label>Reference / Policy No.</label><input id="ueDocRef" value="${esc(x.ref||'')}"></div>
+ </div><div style="margin-top:14px"><label>Notes</label><textarea id="ueDocNotes">${esc(x.notes||'')}</textarea></div>`);
+}
+function saveDocumentEdit(id){
+ const x=(db.documents||[]).find(d=>d.id===id);if(!x)return; const issue=document.getElementById('ueDocIssue').value,expiry=document.getElementById('ueDocExpiry').value;if(expiry<issue)return alert('Expiry date cannot be before issue date.');
+ x.vehicleId=document.getElementById('ueDocVehicle').value;x.type=document.getElementById('ueDocType').value.trim();x.issueDate=issue;x.expiryDate=expiry;x.reminderDays=Number(document.getElementById('ueDocReminder').value||0);x.ref=document.getElementById('ueDocRef').value.trim();x.notes=document.getElementById('ueDocNotes').value.trim();closeUnifiedEdit();save();renderDocuments();
+}
+
 function renderDocuments(){
   let q=(documentSearch?.value||'').toLowerCase();
   let rows=db.documents.slice().sort((a,b)=>a.expiryDate.localeCompare(b.expiryDate))
@@ -1192,7 +1304,7 @@ function renderDocuments(){
       <td>${esc(x.issueDate)}</td><td>${esc(x.expiryDate)}</td>
       <td>${reminderBadge(days,x.type)}<br><small>Reminder: ${Number(x.reminderDays||0)} days before</small></td>
       <td>${esc(x.ref||'-')}<br><small>${esc(x.notes||'')}</small></td>
-      <td><button class="danger" onclick="deleteDocument('${x.id}')">Delete</button></td>
+      <td><button class="primary edit-action" type="button" onclick="editDocument('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteDocument('${x.id}')">Delete</button></td>
     </tr>`;
   }).join('')}</table>`:'<div class="empty">No tax, fitness or insurance records found.</div>';
 }
@@ -1251,37 +1363,35 @@ function deleteVehicle(id){
   save();
 }
 function editVehicle(id){
-  const v=db.vehicles.find(x=>x.id===id);
-  if(!v)return;
-  const row=document.querySelector(`tr[data-vehicle-id="${id}"]`);
-  if(!row)return;
-  const p=(db.pairs||[]).find(x=>x.horseId===id);
-  const t=p?(db.trailers||[]).find(x=>x.id===p.trailerId):null;
-  const d=(db.drivers||[]).find(x=>x.vehicleId===id);
-  row.innerHTML=`
-    <td><input class="inline-edit-input" id="editNo_${id}" value="${esc(v.no||'')}" title="${esc(v.no||'')}" style="width:100%;min-width:150px;box-sizing:border-box"></td>
-    <td><input class="inline-edit-input" id="editReg_${id}" value="${esc(v.reg||'')}" title="${esc(v.reg||'')}" style="width:100%;min-width:180px;box-sizing:border-box"></td>
-    <td><input class="inline-edit-input" id="editType_${id}" value="${esc(v.type||'')}" title="${esc(v.type||'')}" style="width:100%;min-width:150px;box-sizing:border-box"></td>
-    <td>${d?esc(d.name||'')+' — '+esc(d.phone||''):'<span style="color:#94a3b8">Unassigned</span>'}</td>
-    <td>${t?esc(t.no||'')+' — '+esc(t.reg||''):'<span style="color:#94a3b8">Not paired</span>'}</td>
-    <td>${db.jobs.filter(j=>j.vehicleId===id).length}</td>
-    <td>${money(db.expenses.filter(e=>e.vehicleId===id).reduce((a,e)=>a+Number(e.amount||0),0))}</td>
-    <td style="white-space:nowrap">
-      <button class="primary" onclick="saveVehicleEdit('${id}')">Save</button>
-      <button onclick="cancelVehicleEdit()">Cancel</button>
-    </td>`;
+  const v=(db.vehicles||[]).find(x=>x.id===id); if(!v)return;
+  const driver=(db.drivers||[]).find(d=>d.vehicleId===id);
+  const pair=(db.pairs||[]).find(x=>x.horseId===id);
+  const drivers='<option value="">— Unassigned —</option>'+(db.drivers||[]).map(d=>`<option value="${esc(d.id)}" ${driver&&driver.id===d.id?'selected':''}>${esc(d.name||'-')} — ${esc(d.phone||'')}</option>`).join('');
+  const trailers='<option value="">— Not paired —</option>'+(db.trailers||[]).map(t=>`<option value="${esc(t.id)}" ${pair&&pair.trailerId===t.id?'selected':''}>${esc(t.no||'-')} — ${esc(t.reg||'')}</option>`).join('');
+  openUnifiedEdit('vehicle',id,'Edit Vehicle',`
+    <div class="unified-edit-grid">
+      <div><label>Fleet Number</label><input id="ueVehicleNo" value="${esc(v.no||'')}"></div>
+      <div><label>Vehicle Number / Registration</label><input id="ueVehicleReg" value="${esc(v.reg||'')}"></div>
+      <div><label>Vehicle Type</label><input id="ueVehicleType" value="${esc(v.type||'')}"></div>
+      <div><label>Assigned Driver</label><select id="ueVehicleDriver">${drivers}</select></div>
+      <div><label>Paired Trailer</label><select id="ueVehicleTrailer">${trailers}</select></div>
+    </div>`);
 }
 function saveVehicleEdit(id){
-  const v=db.vehicles.find(x=>x.id===id);
-  if(!v)return;
-  const no=document.getElementById('editNo_'+id).value.trim();
-  const reg=document.getElementById('editReg_'+id).value.trim();
-  const type=document.getElementById('editType_'+id).value.trim();
-  if(!no)return alert('Vehicle / Fleet Number cannot be empty.');
-  if(db.vehicles.some(x=>x.id!==id && x.no.toLowerCase()===no.toLowerCase()))
-    return alert('That vehicle number already exists.');
+  const v=(db.vehicles||[]).find(x=>x.id===id); if(!v)return;
+  const no=document.getElementById('ueVehicleNo').value.trim();
+  const reg=document.getElementById('ueVehicleReg').value.trim();
+  const type=document.getElementById('ueVehicleType').value.trim();
+  const driverId=document.getElementById('ueVehicleDriver').value;
+  const trailerId=document.getElementById('ueVehicleTrailer').value;
+  if(!no)return alert('Enter a fleet number.');
+  if((db.vehicles||[]).some(x=>x.id!==id&&String(x.no||'').toLowerCase()===no.toLowerCase()))return alert('That fleet number already exists.');
   v.no=no; v.reg=reg; v.type=type;
-  save();
+  (db.drivers||[]).forEach(d=>{if(d.vehicleId===id)d.vehicleId='';});
+  if(driverId){const d=(db.drivers||[]).find(x=>x.id===driverId);if(d)d.vehicleId=id;}
+  db.pairs=(db.pairs||[]).filter(x=>x.horseId!==id);
+  if(trailerId)db.pairs.push({id:crypto.randomUUID(),horseId:id,trailerId});
+  closeUnifiedEdit(); save();
 }
 function cancelVehicleEdit(){renderVehicles();}
 let vehicleCategory='all';
@@ -1365,39 +1475,13 @@ function saveDriver(){
 function editDriver(id){showView('drivers');showDriverForm(id);}
 function deleteDriver(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)return;if(confirm('Delete driver '+(d.name||'')+'?')){db.drivers=db.drivers.filter(x=>x.id!==id);persistDb();renderDrivers();}}
 function unassignDriver(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)return;d.vehicleId='';persistDb();renderDrivers();renderVehicles();}
-function editDriverRow(id){
-  const d=(db.drivers||[]).find(x=>x.id===id); if(!d)return;
-  renderDrivers(id);
-  const row=document.querySelector('#driverTable tr[data-driver-id="'+id+'"]');
-  if(row){ const input=row.querySelector('.driver-name-input'); if(input) input.focus(); }
-}
-function cancelDriverRow(id){ renderDrivers(); }
-function saveDriverRow(id){
-  const d=(db.drivers||[]).find(x=>x.id===id); if(!d)return;
-  const row=document.querySelector('#driverTable tr[data-driver-id="'+id+'"]'); if(!row)return;
-  const name=(row.querySelector('.driver-name-input')?.value||'').trim();
-  const phone=(row.querySelector('.driver-phone-input')?.value||'').trim();
-  const vehicleId=row.querySelector('.driver-vehicle-select')?.value||'';
-  if(!name)return alert('Enter the driver name.');
-  if(!phone)return alert('Enter the driver phone number.');
-  if(phone!=='-' && db.drivers.some(x=>x.id!==id && x.phone===phone))return alert('That phone number is already registered to another driver.');
-  if(vehicleId && db.drivers.some(x=>x.id!==id && x.vehicleId===vehicleId))return alert('That truck is already assigned to another driver. Unassign it first or choose another truck.');
-  d.name=name; d.phone=phone; d.vehicleId=vehicleId;
-  persistDb();
-  renderDrivers(); renderVehicles();
-}
-function renderDrivers(editId){
-  const q=(document.getElementById('driverSearch')?.value||'').toLowerCase().trim();
-  const rows=(db.drivers||[]).map(d=>{const v=(db.vehicles||[]).find(x=>x.id===d.vehicleId)||{};return {...d,v};}).filter(d=>(d.name+' '+d.phone+' '+d.v.no+' '+d.v.reg).toLowerCase().includes(q));
-  const box=document.getElementById('driverTable');
-  box.innerHTML=rows.length?'<table><tr><th>Driver Name</th><th>Phone Number</th><th>Fleet Number</th><th>Vehicle Number</th><th>Actions</th></tr>'+rows.map(d=>{
-    const editing=editId===d.id;
-    if(editing){
-      const options='<option value="">— Unassigned —</option>'+(db.vehicles||[]).map(v=>'<option value="'+v.id+'" '+(v.id===d.vehicleId?'selected':'')+'>'+esc(v.no||'')+(v.reg?' — '+esc(v.reg):'')+'</option>').join('');
-      return '<tr data-driver-id="'+d.id+'"><td><input class="driver-name-input" value="'+esc(d.name||'')+'" style="width:100%;box-sizing:border-box"></td><td><input class="driver-phone-input" value="'+esc(d.phone||'')+'" style="width:100%;box-sizing:border-box"></td><td><select class="driver-vehicle-select" style="width:100%;box-sizing:border-box">'+options+'</select></td><td>'+esc(d.v.reg||'')+'</td><td><button class="primary" type="button" onclick="saveDriverRow(\''+d.id+'\')">Save</button> <button type="button" onclick="cancelDriverRow(\''+d.id+'\')">Cancel</button></td></tr>';
-    }
-    return '<tr data-driver-id="'+d.id+'"><td><b>'+esc(d.name||'')+'</b></td><td>'+esc(d.phone||'')+'</td><td>'+(d.v.no?esc(d.v.no):'<span style="color:#94a3b8">Unassigned</span>')+'</td><td>'+esc(d.v.reg||'')+'</td><td><button class="primary" type="button" onclick="editDriverRow(\''+d.id+'\')">Edit</button> '+(d.v.no?'<button type="button" onclick="unassignDriver(\''+d.id+'\')">Unassign</button> ':'')+'<button class="danger" type="button" onclick="deleteDriver(\''+d.id+'\')">Delete</button></td></tr>';
-  }).join('')+'</table>':'<div class="empty">No drivers registered yet.</div>';
+function editDriverRow(id){ editDriver(id); }
+function renderDrivers(){
+  const q=(driverSearch?.value||'').toLowerCase();
+  const rows=(db.drivers||[]).map(d=>{const v=(db.vehicles||[]).find(x=>x.id===d.vehicleId)||{};return {...d,v};})
+    .filter(d=>JSON.stringify(d).toLowerCase().includes(q));
+  driverTable.innerHTML=rows.length?'<table><tr><th>Driver Name</th><th>Phone</th><th>Fleet Number</th><th>Vehicle Number</th><th>Actions</th></tr>'+
+    rows.map(d=>'<tr data-driver-id="'+d.id+'"><td><b>'+esc(d.name||'')+'</b></td><td>'+esc(d.phone||'')+'</td><td>'+(d.v.no?esc(d.v.no):'<span style="color:#94a3b8">Unassigned</span>')+'</td><td>'+esc(d.v.reg||'')+'</td><td><button class="primary edit-action" type="button" onclick="editDriver(\''+d.id+'\')">Edit</button> '+(d.v.no?'<button type="button" onclick="unassignDriver(\''+d.id+'\')">Unassign</button> ':'')+'<button class="danger" type="button" onclick="deleteDriver(\''+d.id+'\')">Delete</button></td></tr>').join('')+'</table>':'<div class="empty">No drivers registered yet.</div>';
 }
 function exportDriversExcel(){
   if(typeof XLSX==='undefined')return alert('Excel library could not be loaded.');
@@ -1492,9 +1576,9 @@ function saveJobEdit(){
  j.parts=document.getElementById('editJobParts').value.trim(); j.cost=Number(document.getElementById('editJobCost').value||0);
  closeJobEdit(); save();
 }
-document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(document.getElementById('jobEditModal')?.classList.contains('show'))closeJobEdit();if(document.getElementById('expenseEditModal')?.classList.contains('show'))closeExpenseEdit();});
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(document.getElementById('jobEditModal')?.classList.contains('show'))closeJobEdit();if(document.getElementById('expenseEditModal')?.classList.contains('show'))closeExpenseEdit();if(document.getElementById('serviceEditModal')?.classList.contains('show'))closeServiceEdit();if(document.getElementById('unifiedEditModal')?.classList.contains('show'))closeUnifiedEdit();});
 function addExpense(){if(!eVehicle.value)return alert('Select a vehicle.');if(!eAmount.value)return alert('Enter an amount.');db.expenses.push({id:crypto.randomUUID(),vehicleId:eVehicle.value,date:eDate.value||today(),cat:eCat.value,payee:ePayee.value.trim(),ref:eRef.value.trim(),amount:Number(eAmount.value),desc:eDesc.value.trim()});['ePayee','eRef','eAmount','eDesc'].forEach(id=>document.getElementById(id).value='');save()}
-function renderExpenses(){let q=(expenseSearch?.value||'').toLowerCase();let rows=db.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).filter(e=>JSON.stringify({...e,vehicle:vname(e.vehicleId)}).toLowerCase().includes(q));expenseTable.innerHTML=rows.length?`<table><tr><th>Date</th><th>Vehicle</th><th>Category</th><th>Payee</th><th>Reference</th><th>Amount</th><th>Actions</th></tr>${rows.map(e=>`<tr class="expense-row-clickable" onclick="openExpenseEdit('${e.id}')" title="Click to edit expense"><td>${esc(e.date)}</td><td><b>${esc(vname(e.vehicleId))}</b></td><td>${esc(e.cat)}</td><td>${esc(e.payee)}</td><td>${esc(e.ref)}</td><td>${money(e.amount)}</td><td><button type="button" onclick="event.stopPropagation();openExpenseEdit('${e.id}')">Edit</button> <button class="danger" onclick="event.stopPropagation();deleteExpense('${e.id}')">Delete</button></td></tr>`).join('')}</table>`:'<div class="empty">No expenses found.</div>'}
+function renderExpenses(){let q=(expenseSearch?.value||'').toLowerCase();let rows=db.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).filter(e=>JSON.stringify({...e,vehicle:vname(e.vehicleId)}).toLowerCase().includes(q));expenseTable.innerHTML=rows.length?`<table><tr><th>Date</th><th>Vehicle</th><th>Category</th><th>Payee</th><th>Reference</th><th>Amount</th><th>Actions</th></tr>${rows.map(e=>`<tr class="expense-row-clickable" onclick="openExpenseEdit('${e.id}')" title="Click to edit expense"><td>${esc(e.date)}</td><td><b>${esc(vname(e.vehicleId))}</b></td><td>${esc(e.cat)}</td><td>${esc(e.payee)}</td><td>${esc(e.ref)}</td><td>${money(e.amount)}</td><td><button class="primary" type="button" onclick="event.stopPropagation();openExpenseEdit('${e.id}')">Edit</button> <button class="danger" onclick="event.stopPropagation();deleteExpense('${e.id}')">Delete</button></td></tr>`).join('')}</table>`:'<div class="empty">No expenses found.</div>'}
 function openExpenseEdit(id){const e=db.expenses.find(x=>x.id===id);if(!e)return;document.getElementById('editExpenseId').value=e.id;const vs=document.getElementById('editExpenseVehicle');vs.innerHTML='<option value="">Select vehicle</option>'+db.vehicles.map(v=>`<option value="${esc(v.id)}">${esc(v.reg||v.no||'-')}</option>`).join('');vs.value=e.vehicleId||'';document.getElementById('editExpenseDate').value=e.date||'';document.getElementById('editExpenseCat').value=e.cat||'';document.getElementById('editExpensePayee').value=e.payee||'';document.getElementById('editExpenseRef').value=e.ref||'';document.getElementById('editExpenseAmount').value=e.amount??'';document.getElementById('editExpenseDesc').value=e.desc||'';const m=document.getElementById('expenseEditModal');m.classList.add('show');m.setAttribute('aria-hidden','false')}
 function closeExpenseEdit(){const m=document.getElementById('expenseEditModal');m.classList.remove('show');m.setAttribute('aria-hidden','true')}
 function saveExpenseEdit(){const id=document.getElementById('editExpenseId').value;const e=db.expenses.find(x=>x.id===id);if(!e)return;e.vehicleId=document.getElementById('editExpenseVehicle').value;e.date=document.getElementById('editExpenseDate').value||today();e.cat=document.getElementById('editExpenseCat').value;e.payee=document.getElementById('editExpensePayee').value.trim();e.ref=document.getElementById('editExpenseRef').value.trim();e.amount=Number(document.getElementById('editExpenseAmount').value||0);e.desc=document.getElementById('editExpenseDesc').value.trim();closeExpenseEdit();save()}
@@ -1820,22 +1904,22 @@ function renderTrailers(){
     '</table>':'<div class="empty">No trailers yet.</div>';
 }
 function editTrailerInline(id){
-  const t=(db.trailers||[]).find(x=>x.id===id);
-  const row=document.querySelector('tr[data-trailer-id="'+id+'"]');
-  if(!t||!row)return;
-  row.innerHTML=
-    '<td><input class="inline-edit-input" id="editTrailerNo_'+id+'" value="'+esc(t.no||'')+'" title="'+esc(t.no||'')+'" style="width:100%;min-width:180px;box-sizing:border-box"></td>'+    '<td><input class="inline-edit-input" id="editTrailerType_'+id+'" value="'+esc(t.type||'')+'" title="'+esc(t.type||'')+'" style="width:100%;min-width:180px;box-sizing:border-box"></td>'+    '<td><input class="inline-edit-input" id="editTrailerDescription_'+id+'" value="'+esc(t.description||'')+'" title="'+esc(t.description||'')+'" style="width:100%;min-width:260px;box-sizing:border-box"></td>'+    '<td style="white-space:nowrap"><button class="primary" type="button" onclick="saveTrailerInline(\''+id+'\')">Save</button> '+    '<button type="button" onclick="renderTrailers()">Cancel</button></td>';
+  const t=(db.trailers||[]).find(x=>x.id===id); if(!t)return;
+  openUnifiedEdit('trailer',id,'Edit Trailer',`
+    <div class="unified-edit-grid">
+      <div><label>Trailer Number</label><input id="ueTrailerNo" value="${esc(t.no||'')}"></div>
+      <div><label>Trailer Registration</label><input id="ueTrailerReg" value="${esc(t.reg||'')}"></div>
+      <div><label>Trailer Type</label><input id="ueTrailerType" value="${esc(t.type||'Tanker')}"></div>
+    </div>
+    <div style="margin-top:14px"><label>Description / Notes</label><textarea id="ueTrailerDescription">${esc(t.description||'')}</textarea></div>`);
 }
 function saveTrailerInline(id){
-  const t=(db.trailers||[]).find(x=>x.id===id);
-  if(!t)return;
-  const no=document.getElementById('editTrailerNo_'+id).value.trim();
-  const type=document.getElementById('editTrailerType_'+id).value.trim() || 'Tanker';
-  const description=document.getElementById('editTrailerDescription_'+id).value.trim();
+  const t=(db.trailers||[]).find(x=>x.id===id); if(!t)return;
+  const no=document.getElementById('ueTrailerNo').value.trim();
   if(!no)return alert('Enter a trailer number.');
-  if((db.trailers||[]).some(x=>x.id!==id && String(x.no||'').toLowerCase()===no.toLowerCase())) return alert('That trailer number already exists.');
-  t.no=no; t.type=type; t.description=description;
-  save(); renderTrailers();
+  if((db.trailers||[]).some(x=>x.id!==id&&String(x.no||'').toLowerCase()===no.toLowerCase()))return alert('That trailer number already exists.');
+  t.no=no; t.reg=document.getElementById('ueTrailerReg').value.trim(); t.type=document.getElementById('ueTrailerType').value.trim()||'Tanker'; t.description=document.getElementById('ueTrailerDescription').value.trim();
+  closeUnifiedEdit(); save(); renderTrailers();
 }
 function exportTrailersExcel(){
   if(typeof XLSX==='undefined')return alert('Excel library could not be loaded.');
@@ -2184,6 +2268,29 @@ try{renderVehicles();renderTrailers();}catch(e){}
 
 
 
+<div id="serviceEditModal" aria-hidden="true">
+  <div class="service-edit-box" role="dialog" aria-modal="true" aria-labelledby="serviceEditTitle">
+    <div class="service-edit-header">
+      <h2 id="serviceEditTitle">Edit Service History</h2>
+      <button type="button" onclick="closeServiceEdit()">Close</button>
+    </div>
+    <input type="hidden" id="editServiceId">
+    <div class="service-edit-grid">
+      <div><label>Vehicle Number</label><select id="editServiceVehicle"></select></div>
+      <div><label>Service Date</label><input type="date" id="editServiceDate"></div>
+      <div><label>Odometer at Service (km)</label><input type="number" id="editServiceKm"></div>
+      <div><label>Next Service Mileage (km)</label><input type="number" id="editServiceNextKm"></div>
+      <div><label>Serviced By</label><input id="editServiceServicedBy"></div>
+    </div>
+    <div style="margin-top:12px"><label>Work / Service Done</label><textarea id="editServiceWork"></textarea></div>
+    <div style="margin-top:12px"><label>Notes</label><textarea id="editServiceNotes"></textarea></div>
+    <div class="service-edit-actions">
+      <button type="button" onclick="closeServiceEdit()">Cancel</button>
+      <button type="button" class="primary" onclick="saveServiceEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <div id="expenseEditModal" aria-hidden="true">
   <div class="expense-edit-box" role="dialog" aria-modal="true" aria-labelledby="expenseEditTitle">
     <div class="expense-edit-header">
@@ -2239,5 +2346,14 @@ try{renderVehicles();renderTrailers();}catch(e){}
 </div>
 
 
+
+<div id="unifiedEditModal" aria-hidden="true"><div class="unified-edit-box" role="dialog" aria-modal="true" aria-labelledby="unifiedEditTitle"><div class="unified-edit-header"><h2 id="unifiedEditTitle">Edit Record</h2><button type="button" onclick="closeUnifiedEdit()">Close</button></div><input type="hidden" id="unifiedEditType"><input type="hidden" id="unifiedEditId"><div id="unifiedEditBody"></div><div class="unified-edit-actions"><button type="button" onclick="closeUnifiedEdit()">Cancel</button><button type="button" class="primary" onclick="saveUnifiedEdit()">Save Changes</button></div></div></div>
+<script>
+function openUnifiedEdit(type,id,title,body){const m=document.getElementById('unifiedEditModal');document.getElementById('unifiedEditType').value=type;document.getElementById('unifiedEditId').value=id;document.getElementById('unifiedEditTitle').textContent=title;document.getElementById('unifiedEditBody').innerHTML=body;m.classList.add('show');m.setAttribute('aria-hidden','false');}
+function closeUnifiedEdit(){const m=document.getElementById('unifiedEditModal');if(!m)return;m.classList.remove('show');m.setAttribute('aria-hidden','true');}
+function saveUnifiedEdit(){const type=document.getElementById('unifiedEditType').value,id=document.getElementById('unifiedEditId').value;if(type==='vehicle')saveVehicleEdit(id);else if(type==='driver')saveDriverModal(id);else if(type==='trailer')saveTrailerInline(id);else if(type==='breakdown')saveBreakdownEdit(id);else if(type==='document')saveDocumentEdit(id);}
+function editDriver(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)return;const opts='<option value="">— Unassigned —</option>'+(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===d.vehicleId?'selected':''}>${esc(vehicleNumber(v))}</option>`).join('');openUnifiedEdit('driver',id,'Edit Driver',`<div class="unified-edit-grid"><div><label>Driver Name</label><input id="ueDriverName" value="${esc(d.name||'')}"></div><div><label>Phone Number</label><input id="ueDriverPhone" value="${esc(d.phone||'')}"></div><div><label>Assigned Vehicle</label><select id="ueDriverVehicle">${opts}</select></div></div>`);}
+function saveDriverModal(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)return;d.name=document.getElementById('ueDriverName').value.trim();d.phone=document.getElementById('ueDriverPhone').value.trim();const vid=document.getElementById('ueDriverVehicle').value;(db.drivers||[]).forEach(x=>{if(x.id!==id&&x.vehicleId===vid&&vid)x.vehicleId='';});d.vehicleId=vid||'';closeUnifiedEdit();persistDb();renderDrivers();renderVehicles();}
+</script>
 </body>
 </html>
