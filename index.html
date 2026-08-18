@@ -257,7 +257,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
   </div>
 </div>
 <nav id="nav">
-<button data-view="dashboard" class="active">Dashboard</button><button data-view="vehicles">Vehicles</button><button data-view="drivers">Drivers</button><button data-view="services">Service History</button><button data-view="breakdowns">Breakdown History</button><button data-view="documents">Tax / Fitness / Insurance</button><button data-view="jobs">Job Cards</button><button data-view="expenses">Expenses</button><button data-view="reports">Reports</button><button data-view="backup">Backup</button>
+<button data-view="dashboard" class="active">Dashboard</button><button data-view="vehicles">Vehicles</button><button data-view="drivers">Drivers</button><button data-view="services">Service History</button><button data-view="breakdowns">Breakdown History</button><button data-view="documents">Tax / Fitness / Insurance</button><button data-view="jobs">Job Cards</button><button data-view="minorRepairs">Minor Repairs</button><button data-view="expenses">Expenses</button><button data-view="reports">Reports</button><button data-view="backup">Backup</button>
 </nav>
 <main>
 <section id="dashboard" class="view active">
@@ -267,6 +267,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <div class="card" role="button" tabindex="0" onclick="showFleetTab('trailers');showView('vehicles')" onkeydown="if(event.key==='Enter'||event.key===' '){showFleetTab('trailers');showView('vehicles')}"><div class="label">Trailers</div><div class="metric" id="mTrailers">0</div></div>
 <div class="card dashboard-link-card" role="button" tabindex="0" onclick="showView('jobs')" onkeydown="if(event.key==='Enter'||event.key===' '){showView('jobs')}"><div class="label">Open Job Cards</div><div class="metric" id="mOpen">0</div></div>
 <div class="card dashboard-link-card" role="button" tabindex="0" onclick="showView('jobs')" onkeydown="if(event.key==='Enter'||event.key===' '){showView('jobs')}"><div class="label">Completed Jobs</div><div class="metric" id="mDone">0</div></div>
+<div class="card dashboard-link-card" role="button" tabindex="0" onclick="showView('minorRepairs')" onkeydown="if(event.key==='Enter'||event.key===' '){showView('minorRepairs')}"><div class="label">Minor Repairs</div><div class="metric" id="mMinorRepairs">0</div></div>
 <div class="card dashboard-link-card" role="button" tabindex="0" onclick="showView('expenses')" onkeydown="if(event.key==='Enter'||event.key===' '){showView('expenses')}"><div class="label">Total Expenses</div><div class="metric" id="mExpense">K0</div></div>
 </div>
 <div class="panel"><h2>Recent Job Cards</h2><div id="recentJobs"></div></div>
@@ -564,6 +565,35 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <div class="panel"><div class="actions no-print"><input class="search" id="jobSearch" placeholder="Search job cards..." oninput="renderJobs()"><select id="jobFilter" onchange="renderJobs()"><option>All</option><option>Open</option><option>In Progress</option><option>Completed</option></select></div><div id="jobTable"></div></div>
 </section>
 
+<section id="minorRepairs" class="view">
+<h1>Minor Repairs</h1><p class="sub">Record small workshop problems that do not require a full job card.</p>
+<div class="panel">
+<h2>Add Minor Repair</h2>
+<div class="grid3">
+<div><label>Vehicle / Trailer</label>
+  <div class="vehicle-picker" id="mrAssetPicker">
+    <input id="mrAssetSearch" placeholder="Search or select vehicle / trailer..." autocomplete="off"
+           onfocus="openMinorRepairAssetPicker()" oninput="renderMinorRepairAssetPicker()">
+    <input type="hidden" id="mrAssetType">
+    <input type="hidden" id="mrAssetId">
+    <div class="vehicle-picker-list" id="mrAssetList"></div>
+  </div>
+</div>
+<div><label>Date</label><input type="date" id="mrDate"></div>
+<div><label>Status</label><select id="mrStatus"><option>Pending</option><option>Completed</option></select></div>
+</div>
+<div style="margin-top:12px"><label>Problem / Complaint</label><textarea id="mrProblem"></textarea></div>
+<div class="grid3" style="margin-top:12px">
+<div><label>Work Done</label><textarea id="mrWork"></textarea></div>
+<div><label>Parts Used</label><textarea id="mrParts"></textarea></div>
+<div><label>Done By Who</label><input id="mrDoneBy"></div>
+</div>
+<div style="margin-top:12px"><label>Remarks</label><textarea id="mrRemarks"></textarea></div>
+<div class="actions"><button class="primary" onclick="addMinorRepair()">Save Minor Repair</button></div>
+</div>
+<div class="panel"><div class="actions no-print"><input class="search" id="minorRepairSearch" placeholder="Search minor repairs..." oninput="renderMinorRepairs()"><select id="minorRepairFilter" onchange="renderMinorRepairs()"><option>All</option><option>Pending</option><option>Completed</option></select></div><div id="minorRepairTable"></div></div>
+</section>
+
 <section id="expenses" class="view">
 <h1>Vehicle Expenses</h1><p class="sub">Record fuel, parts, repairs, tyres, licences and any other fleet costs.</p>
 <div class="panel">
@@ -638,7 +668,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 
 <script>
 const KEY='oasisOilFleet_v1';
-let db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[]};
+let db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],minorRepairs:[],expenses:[],services:[],breakdowns:[],documents:[]};
 let cloudClient=null,cloudChannel=null,cloudSaveTimer=null,cloudBusy=false,cloudRetryTimer=null,cloudReady=false;
 const CLOUD_URL_KEY='https://vkefsqhzrldtirlohthv.supabase.co';
 
@@ -731,7 +761,7 @@ async function pullCloud(){
         {onConflict:'id'}
       );
     }else{
-      db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[]};
+      db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],minorRepairs:[],expenses:[],services:[],breakdowns:[],documents:[]};
       localStorage.setItem(KEY,JSON.stringify(db));
       await cloudClient.from('fleet_data').upsert(
         {id:'company',data:db,updated_at:new Date().toISOString()},
@@ -1272,7 +1302,7 @@ mergeImportedServiceHistory();
 normalizeServiceHistory();
 persistDb();
 function ensureDbShape(){
-  const keys=['vehicles','trailers','pairs','drivers','jobs','expenses','services','breakdowns','documents'];
+  const keys=['vehicles','trailers','pairs','drivers','jobs','minorRepairs','expenses','services','breakdowns','documents'];
   keys.forEach(k=>{if(!Array.isArray(db[k]))db[k]=[];});
   return db;
 }
@@ -1288,8 +1318,9 @@ function refresh(){
  document.getElementById('mTrailers').textContent=(db.trailers||[]).length;
  document.getElementById('mOpen').textContent=db.jobs.filter(j=>j.status!=='Completed').length;
  document.getElementById('mDone').textContent=db.jobs.filter(j=>j.status==='Completed').length;
+ document.getElementById('mMinorRepairs').textContent=(db.minorRepairs||[]).length;
  document.getElementById('mExpense').textContent=money(db.expenses.reduce((a,e)=>a+Number(e.amount||0),0));
- populateSelects();renderVehicles();renderDrivers();renderTrailers();renderServices();renderBreakdowns();renderDocuments();renderJobs();renderExpenses();renderReport();renderRecent();renderReminders();refreshNotificationCenter();
+ populateSelects();renderVehicles();renderDrivers();renderTrailers();renderServices();renderBreakdowns();renderDocuments();renderJobs();renderMinorRepairs();renderExpenses();renderReport();renderRecent();renderReminders();refreshNotificationCenter();
 }
 function openVehiclePicker(id){
  document.getElementById(id+'Picker').classList.add('open');
@@ -1808,6 +1839,47 @@ function showFleetTab(tab){
 
 function showPairFormForTrailer(id){showPairForm();setTimeout(()=>{const s=document.getElementById('pairTrailer');if(s)s.value=id;},0);}
 function showPairFormForHorse(id){showTrailerPicker(id);}
+
+function minorRepairAssetName(type,id){
+  if(type==='trailer'){const t=(db.trailers||[]).find(x=>x.id===id);return t?((t.reg||t.no||'Trailer')):'Unknown trailer';}
+  return vname(id)||'Unknown vehicle';
+}
+function openMinorRepairAssetPicker(){
+  document.getElementById('mrAssetPicker').classList.add('open');
+  renderMinorRepairAssetPicker();
+}
+function renderMinorRepairAssetPicker(){
+  const list=document.getElementById('mrAssetList'); if(!list)return;
+  const q=(document.getElementById('mrAssetSearch')?.value||'').trim().toLowerCase();
+  const items=[];
+  (db.vehicles||[]).forEach(v=>{const label=(v.reg||v.no||'')+(v.reg&&v.no?' • '+v.no:'');if(label.toLowerCase().includes(q))items.push({type:'vehicle',id:v.id,label:label||'Vehicle'});});
+  (db.trailers||[]).forEach(t=>{const label=(t.reg||t.no||'')+(t.reg&&t.no?' • '+t.no:'');if(label.toLowerCase().includes(q))items.push({type:'trailer',id:t.id,label:(label||'Trailer')+' • Trailer'});});
+  list.innerHTML=items.length?items.slice(0,100).map(x=>`<div class="vehicle-picker-item" onclick="selectMinorRepairAsset('${x.type}','${x.id}')">${esc(x.label)}</div>`).join(''):'<div class="vehicle-picker-item muted">No matching vehicle or trailer</div>';
+}
+function selectMinorRepairAsset(type,id){
+  document.getElementById('mrAssetType').value=type;
+  document.getElementById('mrAssetId').value=id;
+  document.getElementById('mrAssetSearch').value=minorRepairAssetName(type,id)+(type==='trailer'?' • Trailer':'');
+  document.getElementById('mrAssetPicker').classList.remove('open');
+}
+function addMinorRepair(){
+  const assetId=document.getElementById('mrAssetId').value;
+  const assetType=document.getElementById('mrAssetType').value||'vehicle';
+  if(!assetId)return alert('Select a vehicle or trailer.');
+  db.minorRepairs=db.minorRepairs||[];
+  db.minorRepairs.push({id:crypto.randomUUID(),assetType,assetId,date:document.getElementById('mrDate').value||today(),problem:document.getElementById('mrProblem').value.trim(),work:document.getElementById('mrWork').value.trim(),parts:document.getElementById('mrParts').value.trim(),doneBy:document.getElementById('mrDoneBy').value.trim(),remarks:document.getElementById('mrRemarks').value.trim(),status:document.getElementById('mrStatus').value});
+  ['mrAssetSearch','mrAssetType','mrAssetId','mrDate','mrProblem','mrWork','mrParts','mrDoneBy','mrRemarks'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mrStatus').value='Pending';
+  save();
+}
+function renderMinorRepairs(){
+  const box=document.getElementById('minorRepairTable'); if(!box)return;
+  const q=(document.getElementById('minorRepairSearch')?.value||'').toLowerCase(), f=document.getElementById('minorRepairFilter')?.value||'All';
+  const rows=(db.minorRepairs||[]).slice().filter(r=>(f==='All'||r.status===f)&&JSON.stringify(r).toLowerCase().includes(q));
+  rows.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  box.innerHTML=rows.length?`<table><tr><th>Date</th><th>Vehicle / Trailer</th><th>Problem</th><th>Work Done</th><th>Parts Used</th><th>Done By Who</th><th>Remarks</th><th>Status</th><th></th></tr>${rows.map(r=>`<tr><td>${esc(r.date||'')}</td><td>${esc(minorRepairAssetName(r.assetType,r.assetId))}${r.assetType==='trailer'?' <span class="muted">(Trailer)</span>':''}</td><td>${esc(r.problem||'')}</td><td>${esc(r.work||'')}</td><td>${esc(r.parts||'')}</td><td>${esc(r.doneBy||'')}</td><td>${esc(r.remarks||'')}</td><td><span class="badge ${r.status==='Completed'?'done':'open'}">${esc(r.status||'Pending')}</span></td><td><button class="danger" onclick="deleteMinorRepair('${r.id}')">Delete</button></td></tr>`).join('')}</table>`:'<div class="empty">No minor repairs found.</div>';
+}
+function deleteMinorRepair(id){if(confirm('Delete this minor repair?')){db.minorRepairs=(db.minorRepairs||[]).filter(r=>r.id!==id);save();}}
 
 function addJob(){
  if(!jVehicle.value)return alert('Select a vehicle.');
