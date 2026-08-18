@@ -638,6 +638,12 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <script>
 const KEY='oasisOilFleet_v1';
 let db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[]};
+// Restore the last locally saved database before any startup seeding. This is
+// important so deleted vehicles are not mistaken for a brand-new empty fleet.
+try{
+  const savedDb=localStorage.getItem(KEY);
+  if(savedDb){ const parsed=JSON.parse(savedDb); if(parsed&&typeof parsed==='object') db=parsed; }
+}catch(e){ console.warn('Could not restore local fleet data:',e); }
 let cloudClient=null,cloudChannel=null,cloudSaveTimer=null,cloudBusy=false,cloudRetryTimer=null,cloudReady=false;
 const CLOUD_URL_KEY='https://vkefsqhzrldtirlohthv.supabase.co';
 
@@ -709,8 +715,6 @@ async function pullCloud(){
     if(hasRemote){
       db=remote;
       ensureDbShape();
-      seedRoadTax2027();
-      syncMasterFleet();
       const importedChanged=mergeImportedServiceHistory();
       localStorage.setItem(KEY,JSON.stringify(db));
       if(importedChanged){
@@ -1064,25 +1068,37 @@ function seedRoadTax2027(){
   });
   persistDb();
 }
-db.trailers=Array.isArray(db.trailers)?db.trailers:[];
-seedRoadTax2027();
-db.pairs=Array.isArray(db.pairs)?db.pairs:[];
-COMPANY_TRAILERS.forEach(t=>{
-  const existing=db.trailers.find(x=>String(x.no||'').trim().toLowerCase()===t.no.toLowerCase());
-  if(existing){
-    existing.type='Tanker';
-    if(!existing.description) existing.description=t.description;
-  }else{
-    db.trailers.push({id:crypto.randomUUID(),no:t.no,reg:t.reg,type:t.type,description:t.description});
-  }
-});
-COMPANY_TRAILER_PAIRS.forEach(pair=>{
-  const horse=(db.vehicles||[]).find(v=>String(v.no||'').trim().toLowerCase()===pair.horseNo.toLowerCase() || String(v.reg||'').trim().toLowerCase()===pair.horseReg.toLowerCase());
-  const trailer=(db.trailers||[]).find(t=>String(t.no||'').trim().toLowerCase()===pair.trailerNo.toLowerCase());
-  if(horse && trailer && !db.pairs.some(p=>p.horseId===horse.id && p.trailerId===trailer.id)){
-    db.pairs.push({id:crypto.randomUUID(),horseId:horse.id,trailerId:trailer.id});
-  }
-});
+const FLEET_SEED_FLAG='oasisOilFleet_masterFleetSeeded_v3';
+const shouldSeedInitialFleet=!(Array.isArray(db.vehicles)&&db.vehicles.length>0) && !localStorage.getItem(FLEET_SEED_FLAG);
+if(shouldSeedInitialFleet){
+  // Seed the supplied master fleet only once on a genuinely empty local database.
+  // After that, user deletions are permanent and are never re-created on refresh.
+  db.trailers=Array.isArray(db.trailers)?db.trailers:[];
+  // First create the master vehicles, then attach imported compliance records.
+  syncMasterFleet();
+  db.trailers=Array.isArray(db.trailers)?db.trailers:[];
+  COMPANY_TRAILERS.forEach(t=>{
+    const existing=db.trailers.find(x=>String(x.no||'').trim().toLowerCase()===t.no.toLowerCase());
+    if(existing){
+      existing.type='Tanker';
+      if(!existing.description) existing.description=t.description;
+    }else{
+      db.trailers.push({id:crypto.randomUUID(),no:t.no,reg:t.reg,type:t.type,description:t.description});
+    }
+  });
+  COMPANY_TRAILER_PAIRS.forEach(pair=>{
+    const horse=(db.vehicles||[]).find(v=>String(v.no||'').trim().toLowerCase()===pair.horseNo.toLowerCase() || String(v.reg||'').trim().toLowerCase()===pair.horseReg.toLowerCase());
+    const trailer=(db.trailers||[]).find(t=>String(t.no||'').trim().toLowerCase()===pair.trailerNo.toLowerCase());
+    if(horse && trailer && !db.pairs.some(p=>p.horseId===horse.id && p.trailerId===trailer.id)){
+      db.pairs.push({id:crypto.randomUUID(),horseId:horse.id,trailerId:trailer.id});
+    }
+  });
+  seedRoadTax2027();
+  localStorage.setItem(FLEET_SEED_FLAG,'1');
+}else{
+  db.trailers=Array.isArray(db.trailers)?db.trailers:[];
+  db.pairs=Array.isArray(db.pairs)?db.pairs:[];
+}
 
 
 // Preloaded driver assignments from OASIS ALL BIG VEHICLES.xlsx.
@@ -1134,7 +1150,6 @@ function syncMasterFleet(){
     }
   });
 }
-syncMasterFleet();
 persistDb();
 
 
@@ -1574,11 +1589,18 @@ function addVehicle(){let no=vNo.value.trim();if(!no)return alert('Enter a vehic
 function deleteVehicle(id){
   const v=(db.vehicles||[]).find(x=>x.id===id);
   if(!v)return;
-  if(db.jobs.some(j=>j.vehicleId===id)||db.expenses.some(e=>e.vehicleId===id))return alert('This vehicle has records. Delete its records first, or keep the vehicle for history.');
   if(!confirm('Delete vehicle '+(v.no||v.reg||'')+'?\n\nThis action cannot be undone.'))return;
+  // Keep historical jobs/expenses/services, but remove the vehicle itself and
+  // all live links that would otherwise make it reappear or keep reminders active.
   (db.drivers||[]).forEach(d=>{if(d.vehicleId===id)d.vehicleId='';});
-  db.vehicles=db.vehicles.filter(v=>v.id!==id);
-  save();
+  db.pairs=(db.pairs||[]).filter(p=>p.horseId!==id);
+  db.documents=(db.documents||[]).filter(d=>d.vehicleId!==id);
+  db.vehicles=db.vehicles.filter(x=>x.id!==id);
+  persistDb();
+  // Push the deletion immediately so a quick refresh/login cannot pull an older cloud copy.
+  if(cloudClient) pushCloud();
+  refresh();
+  notifyReminders();
 }
 function editVehicle(id){
   const v=(db.vehicles||[]).find(x=>x.id===id); if(!v)return;
