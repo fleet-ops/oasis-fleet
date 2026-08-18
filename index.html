@@ -1379,8 +1379,10 @@ function openServiceEdit(id){
   const x=(db.services||[]).find(s=>s.id===id); if(!x)return;
   document.getElementById('editServiceId').value=x.id;
   const vs=document.getElementById('editServiceVehicle');
-  vs.innerHTML='<option value="">Select vehicle</option>'+(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}">${esc(vehicleNumber(v))}</option>`).join('');
   vs.value=x.vehicleId||'';
+  const vv=(db.vehicles||[]).find(v=>v.id===x.vehicleId);
+  document.getElementById('editServiceVehicleSearch').value=vv?vehicleNumber(vv):'';
+  renderServiceEditVehiclePicker();
   document.getElementById('editServiceDate').value=x.date||'';
   document.getElementById('editServiceKm').value=x.km??'';
   document.getElementById('editServiceNextKm').value=x.nextKm??'';
@@ -1390,6 +1392,28 @@ function openServiceEdit(id){
   const m=document.getElementById('serviceEditModal'); m.classList.add('show'); m.setAttribute('aria-hidden','false');
 }
 function closeServiceEdit(){const m=document.getElementById('serviceEditModal');m.classList.remove('show');m.setAttribute('aria-hidden','true')}
+function openServiceEditVehiclePicker(){
+  document.getElementById('editServiceVehiclePicker').classList.add('open');
+  renderServiceEditVehiclePicker();
+}
+function selectServiceEditVehicle(vehicleId){
+  const v=(db.vehicles||[]).find(x=>x.id===vehicleId);
+  if(!v)return;
+  document.getElementById('editServiceVehicle').value=v.id;
+  document.getElementById('editServiceVehicleSearch').value=vehicleNumber(v);
+  document.getElementById('editServiceVehiclePicker').classList.remove('open');
+}
+function renderServiceEditVehiclePicker(){
+  const search=document.getElementById('editServiceVehicleSearch');
+  const list=document.getElementById('editServiceVehicleList');
+  if(!search||!list)return;
+  const selected=document.getElementById('editServiceVehicle').value;
+  const q=(search.value||'').toLowerCase().trim();
+  const rows=(db.vehicles||[]).filter(v=>(v.no+' '+v.reg+' '+v.type).toLowerCase().includes(q));
+  list.innerHTML=rows.length
+    ? rows.map(v=>`<button type="button" class="vehicle-picker-option ${v.id===selected?'selected':''}" onclick="selectServiceEditVehicle('${v.id}')">${esc(v.no||v.reg)}${v.reg?' — '+esc(v.reg):''}${v.type?' · '+esc(v.type):''}</button>`).join('')
+    : '<div class="vehicle-picker-empty">No matching vehicles found.</div>';
+}
 function saveServiceEdit(){
   const id=document.getElementById('editServiceId').value; const x=(db.services||[]).find(s=>s.id===id); if(!x)return;
   const vehicleId=document.getElementById('editServiceVehicle').value;
@@ -1562,25 +1586,34 @@ function collectReminders(){
   });
   return out.sort((a,b)=>a.days-b.days);
 }
+const NOTIFICATION_SEEN_KEYS='oasisOilFleet_notifications_seen_keys_v2';
+function getSeenNotificationKeys(){
+  try{
+    const raw=localStorage.getItem(NOTIFICATION_SEEN_KEYS);
+    const arr=raw?JSON.parse(raw):[];
+    return new Set(Array.isArray(arr)?arr.map(String):[]);
+  }catch(e){ return new Set(); }
+}
+function saveSeenNotificationKeys(set){
+  try{ localStorage.setItem(NOTIFICATION_SEEN_KEYS,JSON.stringify(Array.from(set))); }catch(e){}
+}
 function reminderNotificationKey(r){
-  // The key changes whenever the actual record, expiry date, reminder setting,
-  // or number of days remaining changes. This prevents stale reminders after an edit.
-  return [r.recordId,r.date,r.reminderDays].join('|');
+  // Stable key: it does NOT depend on the database record ID.
+  // This prevents the same reminder from becoming a "new" desktop notification
+  // when Supabase sync recreates/replaces the underlying record.
+  return [String(r.title||'').trim().toUpperCase(),String(r.date||''),String(r.reminderDays??'')].join('|');
 }
 function notifyReminders(){
   const rows=collectReminders();
   const currentKeys=new Set(rows.map(reminderNotificationKey));
   const logged=getNotificationLog();
+  const seenKeys=getSeenNotificationKeys();
 
-  // Keep only the notification states that still exist in the CURRENT database.
-  // Editing, renewing, deleting, or changing the reminder period therefore
-  // immediately removes the old state.
+  // Keep only notification states that still exist in the CURRENT database.
   const activeLogged=logged.filter(x=>currentKeys.has(String(x.key||'')));
   const existingKeys=new Set(activeLogged.map(x=>String(x.key||'')));
   const newlyCreated=[];
 
-  // Create a current notification state for EVERY active reminder, not just the
-  // first 15. The dashboard and notification center therefore always stay complete.
   rows.forEach(r=>{
     const key=reminderNotificationKey(r);
     if(!existingKeys.has(key)){
@@ -1594,17 +1627,19 @@ function notifyReminders(){
       };
       activeLogged.unshift(item);
       existingKeys.add(key);
-      newlyCreated.push(r);
+      // Only a reminder that has NEVER been viewed on this device is new.
+      if(!seenKeys.has(key)) newlyCreated.push(r);
     }
   });
 
-  // Keep current reminders sorted with the newest generated states first.
   saveNotificationLog(activeLogged);
   renderReminders();
   updateNotificationBadge();
   refreshNotificationCenter();
 
-  // Browser notifications only fire for a genuinely new CURRENT reminder state.
+  // Desktop notifications are sent only once per genuinely new reminder state.
+  // Opening the notification panel marks that state as seen, so it will not
+  // keep notifying again every minute or after a Supabase sync.
   if('Notification' in window && Notification.permission==='granted'){
     newlyCreated.slice(0,5).forEach(r=>{
       new Notification('Fleet-Ops Reminder',{body:r.title+' — '+r.text});
@@ -2195,15 +2230,20 @@ function toggleNotificationPanel(){
   }
 }
 function markNotificationsSeen(){
-  localStorage.setItem('oasisOilFleet_notifications_seen',String(Date.now()));
+  // Mark every reminder currently shown in the notification panel as READ.
+  // This is persisted on the laptop, so syncs and 60-second checks cannot
+  // make the same reminder fire again. A changed/new reminder gets a new key.
+  const seen=getSeenNotificationKeys();
+  collectReminders().forEach(r=>seen.add(reminderNotificationKey(r)));
+  saveSeenNotificationKeys(seen);
   updateNotificationBadge();
 }
 function updateNotificationBadge(){
   const badge=document.getElementById('notificationBadge');
   if(!badge)return;
+  const seen=getSeenNotificationKeys();
   const rows=getNotificationLog();
-  const seen=Number(localStorage.getItem('oasisOilFleet_notifications_seen')||0);
-  const unread=rows.filter(x=>Number(x.id?.split('-')[0]||0)>seen).length;
+  const unread=rows.filter(x=>!seen.has(String(x.key||''))).length;
   badge.textContent=unread>99?'99+':String(unread);
   badge.style.display=unread?'block':'none';
 }
@@ -2800,7 +2840,14 @@ try{renderVehicles();renderTrailers();}catch(e){}
     </div>
     <input type="hidden" id="editServiceId">
     <div class="service-edit-grid">
-      <div><label>Vehicle Number</label><select id="editServiceVehicle"></select></div>
+      <div><label>Vehicle Number</label>
+        <div class="vehicle-picker" id="editServiceVehiclePicker">
+          <input id="editServiceVehicleSearch" placeholder="Search or select vehicle..." autocomplete="off"
+                 onfocus="openServiceEditVehiclePicker()" oninput="renderServiceEditVehiclePicker()">
+          <input type="hidden" id="editServiceVehicle">
+          <div class="vehicle-picker-list" id="editServiceVehicleList"></div>
+        </div>
+      </div>
       <div><label>Service Date</label><input type="date" id="editServiceDate"></div>
       <div><label>Odometer at Service (km)</label><input type="number" id="editServiceKm"></div>
       <div><label>Next Service Mileage (km)</label><input type="number" id="editServiceNextKm"></div>
