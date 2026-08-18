@@ -492,7 +492,9 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <select id="dType">
 <option>Road Tax</option>
 <option>Fitness</option>
-<option>Insurance</option><option>ZABS Certificate</option><option>Electrical Certificate</option></select>
+<option>Insurance</option>
+<option>ZABS Certificate</option>
+<option>Electrical Certificate</option></select>
 </div>
 <div><label>Issue Date</label><input type="date" id="dIssueDate"></div>
 </div>
@@ -707,7 +709,8 @@ async function pullCloud(){
     if(hasRemote){
       db=remote;
       ensureDbShape();
-      // Do not recreate vehicles on cloud refresh. User-managed fleet is authoritative.
+      seedRoadTax2027();
+      syncMasterFleet();
       const importedChanged=mergeImportedServiceHistory();
       localStorage.setItem(KEY,JSON.stringify(db));
       if(importedChanged){
@@ -1062,7 +1065,7 @@ function seedRoadTax2027(){
   persistDb();
 }
 db.trailers=Array.isArray(db.trailers)?db.trailers:[];
-// Road Tax seed disabled: never recreate a vehicle that the user deleted.
+seedRoadTax2027();
 db.pairs=Array.isArray(db.pairs)?db.pairs:[];
 COMPANY_TRAILERS.forEach(t=>{
   const existing=db.trailers.find(x=>String(x.no||'').trim().toLowerCase()===t.no.toLowerCase());
@@ -1131,7 +1134,7 @@ function syncMasterFleet(){
     }
   });
 }
-// Disabled automatic master-fleet reseeding: deleted vehicles must stay deleted.
+syncMasterFleet();
 persistDb();
 
 
@@ -1237,9 +1240,10 @@ function openVehiclePicker(id){
 }
 function selectVehicle(id,vehicleId){
  let v=db.vehicles.find(x=>x.id===vehicleId);
- if(!v)return;
- document.getElementById(id).value=v.id;
- document.getElementById(id+'Search').value=vehicleNumber(v);
+ let t=(db.trailers||[]).find(x=>x.id===vehicleId);
+ if(!v&&!t)return;
+ document.getElementById(id).value=vehicleId;
+ document.getElementById(id+'Search').value=v?vehicleNumber(v):(t.no||t.reg||'Trailer');
  document.getElementById(id+'Picker').classList.remove('open');
  if(id==='rVehicle')renderReport();
 }
@@ -1247,7 +1251,7 @@ function renderVehiclePicker(id){
  let search=document.getElementById(id+'Search'),list=document.getElementById(id+'List'),selected=document.getElementById(id).value;
  let q=(search.value||'').toLowerCase().trim();
  let rows=db.vehicles.filter(v=>(v.no+' '+v.reg+' '+v.type).toLowerCase().includes(q));
- if(id==='dVehicle') rows=rows.concat((db.trailers||[]).filter(t=>(t.no+' '+t.reg+' Trailer').toLowerCase().includes(q)).map(t=>({...t,type:'Trailer'})));
+ if(id==='dVehicle'||id==='ueDocVehicle') rows=rows.concat((db.trailers||[]).filter(t=>(t.no+' '+t.reg+' Trailer').toLowerCase().includes(q)).map(t=>({...t,type:'Trailer'})));
  list.innerHTML=rows.length
    ? rows.map(v=>`<button type="button" class="vehicle-picker-option ${v.id===selected?'selected':''}" onclick="selectVehicle('${id}','${v.id}')">${esc(v.no||v.reg)}${v.reg?' — '+esc(v.reg):''}${v.type?' · '+esc(v.type):''}</button>`).join('')
    : '<div class="vehicle-picker-empty">No matching vehicles found.</div>';
@@ -1412,23 +1416,12 @@ function addDocument(){
   if(!dVehicle.value)return alert('Select a vehicle.');
   if(!dIssueDate.value || !dExpiryDate.value)return alert('Enter both issue and expiry dates.');
   if(dExpiryDate.value<dIssueDate.value)return alert('Expiry date cannot be before issue date.');
-  const existing=db.documents.find(x=>String(x.vehicleId)===String(dVehicle.value) && String(x.type||'').toLowerCase()===String(dType.value||'').toLowerCase());
-  if(existing){
-    // Renewing the same document updates the current record instead of leaving an old
-    // record behind that could continue generating reminders.
-    existing.issueDate=dIssueDate.value;
-    existing.expiryDate=dExpiryDate.value;
-    existing.reminderDays=Number(dReminderDays.value||0);
-    existing.ref=dRef.value.trim();
-    existing.notes='';
-  }else{
-    db.documents.push({
-      id:crypto.randomUUID(),vehicleId:dVehicle.value,type:dType.value,
-      issueDate:dIssueDate.value,expiryDate:dExpiryDate.value,
-      reminderDays:Number(dReminderDays.value||0),ref:dRef.value.trim(),notes:''
-    });
-  }
-  ['dIssueDate','dExpiryDate','dRef'].forEach(id=>document.getElementById(id).value='');
+  db.documents.push({
+    id:crypto.randomUUID(),vehicleId:dVehicle.value,type:dType.value,
+    issueDate:dIssueDate.value,expiryDate:dExpiryDate.value,
+    reminderDays:Number(dReminderDays.value||0),ref:dRef.value.trim(),notes:(document.getElementById('dNotes')?.value||'').trim()
+  });
+  ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   dReminderDays.value=15;
   save();
   notifyReminders();
@@ -1438,15 +1431,24 @@ function deleteDocument(id){
 }
 function editDocument(id){
  const x=(db.documents||[]).find(d=>d.id===id);if(!x)return;
- const opts=(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===x.vehicleId?'selected':''}>${esc(vehicleNumber(v))} · ${esc(v.type||'Vehicle')}</option>`).join('')+(db.trailers||[]).map(t=>`<option value="${esc(t.id)}" ${t.id===x.vehicleId?'selected':''}>${esc(t.no||t.reg||'Trailer')} · Trailer</option>`).join('');
+ const currentV=(db.vehicles||[]).find(v=>v.id===x.vehicleId);
+ const currentT=(db.trailers||[]).find(t=>t.id===x.vehicleId);
+ const currentLabel=currentV?vehicleNumber(currentV):(currentT?(currentT.no||currentT.reg||'Trailer'):'');
  openUnifiedEdit('document',id,'Edit Compliance Record',`<div class="unified-edit-grid">
-  <div><label>Vehicle</label><select id="ueDocVehicle">${opts}</select></div>
-  <div><label>Document Type</label><input id="ueDocType" value="${esc(x.type||'')}"></div>
+  <div><label>Vehicle / Trailer</label>
+    <div class="vehicle-picker" id="ueDocVehiclePicker">
+      <input id="ueDocVehicleSearch" value="${esc(currentLabel)}" placeholder="Search or select vehicle/trailer..." autocomplete="off" onfocus="openVehiclePicker('ueDocVehicle')" oninput="renderVehiclePicker('ueDocVehicle')">
+      <input type="hidden" id="ueDocVehicle" value="${esc(x.vehicleId||'')}">
+      <div class="vehicle-picker-list" id="ueDocVehicleList"></div>
+    </div>
+  </div>
+  <div><label>Document Type</label><input id="ueDocType" value="${esc(x.type||'')}" readonly></div>
   <div><label>Issue Date</label><input type="date" id="ueDocIssue" value="${esc(x.issueDate||'')}"></div>
   <div><label>Expiry Date</label><input type="date" id="ueDocExpiry" value="${esc(x.expiryDate||'')}"></div>
   <div><label>Reminder (days before)</label><input type="number" min="0" id="ueDocReminder" value="${Number(x.reminderDays||0)}"></div>
   <div><label>Reference / Policy No.</label><input id="ueDocRef" value="${esc(x.ref||'')}"></div>
  </div><div style="margin-top:14px"><label>Notes</label><textarea id="ueDocNotes">${esc(x.notes||'')}</textarea></div>`);
+ renderVehiclePicker('ueDocVehicle');
 }
 function saveDocumentEdit(id){
  const x=(db.documents||[]).find(d=>d.id===id);if(!x)return; const issue=document.getElementById('ueDocIssue').value,expiry=document.getElementById('ueDocExpiry').value;if(expiry<issue)return alert('Expiry date cannot be before issue date.');
@@ -1497,17 +1499,7 @@ function renderReminders(){
 
 function collectReminders(){
   const out=[];
-  // Only the CURRENT compliance record for each vehicle/type can generate a reminder.
-  // This prevents an older Road Tax, Fitness, Insurance, ZABS or Electrical certificate
-  // from continuing to appear after it has been renewed/replaced.
-  const latest=new Map();
   (db.documents||[]).forEach(x=>{
-    const type=String(x.type||'').trim().toLowerCase();
-    const key=String(x.vehicleId||'')+'|'+type;
-    const existing=latest.get(key);
-    if(!existing || String(x.expiryDate||'')>String(existing.expiryDate||'')){ latest.set(key,x); }
-  });
-  latest.forEach(x=>{
     const days=dateDiffDays(x.expiryDate), n=Math.max(0,Number(x.reminderDays??0));
     if(days!==null && days<=n){
       const vehicle=vname(x.vehicleId);
@@ -1528,33 +1520,20 @@ function reminderNotificationKey(r){
   // or number of days remaining changes. This prevents stale reminders after an edit.
   return [r.recordId,r.date,r.reminderDays].join('|');
 }
-// Keep references to browser notifications while this page is open.
-// This lets a renewed/edited record close its previous laptop notification.
-const activeBrowserNotifications=new Map();
-
-function closeBrowserNotification(recordId){
-  const old=activeBrowserNotifications.get(String(recordId||''));
-  if(old){ try{old.close();}catch(e){} activeBrowserNotifications.delete(String(recordId||'')); }
-}
-
 function notifyReminders(){
   const rows=collectReminders();
   const currentKeys=new Set(rows.map(reminderNotificationKey));
   const logged=getNotificationLog();
 
-  // Remove ALL notification-log entries that no longer represent the current
-  // database state. A renewal/edit therefore replaces the old reminder state.
+  // Keep only the notification states that still exist in the CURRENT database.
+  // Editing, renewing, deleting, or changing the reminder period therefore
+  // immediately removes the old state.
   const activeLogged=logged.filter(x=>currentKeys.has(String(x.key||'')));
   const existingKeys=new Set(activeLogged.map(x=>String(x.key||'')));
   const newlyCreated=[];
 
-  // Any record that disappeared from the active reminder list is no longer valid.
-  // Close its laptop notification too (when this page still owns the notification).
-  const activeRecordIds=new Set(rows.map(r=>String(r.recordId||'')));
-  Array.from(activeBrowserNotifications.keys()).forEach(id=>{
-    if(!activeRecordIds.has(id)) closeBrowserNotification(id);
-  });
-
+  // Create a current notification state for EVERY active reminder, not just the
+  // first 15. The dashboard and notification center therefore always stay complete.
   rows.forEach(r=>{
     const key=reminderNotificationKey(r);
     if(!existingKeys.has(key)){
@@ -1572,25 +1551,16 @@ function notifyReminders(){
     }
   });
 
+  // Keep current reminders sorted with the newest generated states first.
   saveNotificationLog(activeLogged);
   renderReminders();
   updateNotificationBadge();
   refreshNotificationCenter();
 
-  // Laptop/browser notifications are tied to the CURRENT record. The tag makes
-  // the browser replace an existing notification for the same record instead of
-  // stacking old copies. We also retain the Notification object so an edit/renewal
-  // can close it immediately while the app is open.
+  // Browser notifications only fire for a genuinely new CURRENT reminder state.
   if('Notification' in window && Notification.permission==='granted'){
     newlyCreated.slice(0,5).forEach(r=>{
-      closeBrowserNotification(r.recordId);
-      const n=new Notification('Fleet-Ops Reminder',{
-        body:r.title+' — '+r.text,
-        tag:'fleet-ops-reminder-'+String(r.recordId||''),
-        renotify:false
-      });
-      activeBrowserNotifications.set(String(r.recordId||''),n);
-      n.onclick=()=>{try{window.focus();}catch(e){}};
+      new Notification('Fleet-Ops Reminder',{body:r.title+' — '+r.text});
     });
   }
 }
@@ -1604,15 +1574,11 @@ function addVehicle(){let no=vNo.value.trim();if(!no)return alert('Enter a vehic
 function deleteVehicle(id){
   const v=(db.vehicles||[]).find(x=>x.id===id);
   if(!v)return;
-  if(!confirm('Delete vehicle '+(v.no||v.reg||'')+'?\n\nThe vehicle will be removed from the fleet. Existing historical jobs and expenses will be kept.'))return;
+  if(db.jobs.some(j=>j.vehicleId===id)||db.expenses.some(e=>e.vehicleId===id))return alert('This vehicle has records. Delete its records first, or keep the vehicle for history.');
+  if(!confirm('Delete vehicle '+(v.no||v.reg||'')+'?\n\nThis action cannot be undone.'))return;
   (db.drivers||[]).forEach(d=>{if(d.vehicleId===id)d.vehicleId='';});
-  db.pairs=(db.pairs||[]).filter(p=>p.horseId!==id);
-  db.documents=(db.documents||[]).filter(d=>d.vehicleId!==id);
   db.vehicles=db.vehicles.filter(v=>v.id!==id);
   save();
-  renderVehicles();
-  if(typeof renderDocuments==='function')renderDocuments();
-  if(typeof updateNotifications==='function')updateNotifications();
 }
 function editVehicle(id){
   const v=(db.vehicles||[]).find(x=>x.id===id); if(!v)return;
