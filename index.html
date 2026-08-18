@@ -707,8 +707,7 @@ async function pullCloud(){
     if(hasRemote){
       db=remote;
       ensureDbShape();
-      seedRoadTax2027();
-      syncMasterFleet();
+      // Do not recreate vehicles on cloud refresh. User-managed fleet is authoritative.
       const importedChanged=mergeImportedServiceHistory();
       localStorage.setItem(KEY,JSON.stringify(db));
       if(importedChanged){
@@ -1063,7 +1062,7 @@ function seedRoadTax2027(){
   persistDb();
 }
 db.trailers=Array.isArray(db.trailers)?db.trailers:[];
-seedRoadTax2027();
+// Road Tax seed disabled: never recreate a vehicle that the user deleted.
 db.pairs=Array.isArray(db.pairs)?db.pairs:[];
 COMPANY_TRAILERS.forEach(t=>{
   const existing=db.trailers.find(x=>String(x.no||'').trim().toLowerCase()===t.no.toLowerCase());
@@ -1132,7 +1131,7 @@ function syncMasterFleet(){
     }
   });
 }
-syncMasterFleet();
+// Disabled automatic master-fleet reseeding: deleted vehicles must stay deleted.
 persistDb();
 
 
@@ -1605,11 +1604,15 @@ function addVehicle(){let no=vNo.value.trim();if(!no)return alert('Enter a vehic
 function deleteVehicle(id){
   const v=(db.vehicles||[]).find(x=>x.id===id);
   if(!v)return;
-  if(db.jobs.some(j=>j.vehicleId===id)||db.expenses.some(e=>e.vehicleId===id))return alert('This vehicle has records. Delete its records first, or keep the vehicle for history.');
-  if(!confirm('Delete vehicle '+(v.no||v.reg||'')+'?\n\nThis action cannot be undone.'))return;
+  if(!confirm('Delete vehicle '+(v.no||v.reg||'')+'?\n\nThe vehicle will be removed from the fleet. Existing historical jobs and expenses will be kept.'))return;
   (db.drivers||[]).forEach(d=>{if(d.vehicleId===id)d.vehicleId='';});
+  db.pairs=(db.pairs||[]).filter(p=>p.horseId!==id);
+  db.documents=(db.documents||[]).filter(d=>d.vehicleId!==id);
   db.vehicles=db.vehicles.filter(v=>v.id!==id);
   save();
+  renderVehicles();
+  if(typeof renderDocuments==='function')renderDocuments();
+  if(typeof updateNotifications==='function')updateNotifications();
 }
 function editVehicle(id){
   const v=(db.vehicles||[]).find(x=>x.id===id); if(!v)return;
