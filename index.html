@@ -1529,20 +1529,33 @@ function reminderNotificationKey(r){
   // or number of days remaining changes. This prevents stale reminders after an edit.
   return [r.recordId,r.date,r.reminderDays].join('|');
 }
+// Keep references to browser notifications while this page is open.
+// This lets a renewed/edited record close its previous laptop notification.
+const activeBrowserNotifications=new Map();
+
+function closeBrowserNotification(recordId){
+  const old=activeBrowserNotifications.get(String(recordId||''));
+  if(old){ try{old.close();}catch(e){} activeBrowserNotifications.delete(String(recordId||'')); }
+}
+
 function notifyReminders(){
   const rows=collectReminders();
   const currentKeys=new Set(rows.map(reminderNotificationKey));
   const logged=getNotificationLog();
 
-  // Keep only the notification states that still exist in the CURRENT database.
-  // Editing, renewing, deleting, or changing the reminder period therefore
-  // immediately removes the old state.
+  // Remove ALL notification-log entries that no longer represent the current
+  // database state. A renewal/edit therefore replaces the old reminder state.
   const activeLogged=logged.filter(x=>currentKeys.has(String(x.key||'')));
   const existingKeys=new Set(activeLogged.map(x=>String(x.key||'')));
   const newlyCreated=[];
 
-  // Create a current notification state for EVERY active reminder, not just the
-  // first 15. The dashboard and notification center therefore always stay complete.
+  // Any record that disappeared from the active reminder list is no longer valid.
+  // Close its laptop notification too (when this page still owns the notification).
+  const activeRecordIds=new Set(rows.map(r=>String(r.recordId||'')));
+  Array.from(activeBrowserNotifications.keys()).forEach(id=>{
+    if(!activeRecordIds.has(id)) closeBrowserNotification(id);
+  });
+
   rows.forEach(r=>{
     const key=reminderNotificationKey(r);
     if(!existingKeys.has(key)){
@@ -1560,16 +1573,25 @@ function notifyReminders(){
     }
   });
 
-  // Keep current reminders sorted with the newest generated states first.
   saveNotificationLog(activeLogged);
   renderReminders();
   updateNotificationBadge();
   refreshNotificationCenter();
 
-  // Browser notifications only fire for a genuinely new CURRENT reminder state.
+  // Laptop/browser notifications are tied to the CURRENT record. The tag makes
+  // the browser replace an existing notification for the same record instead of
+  // stacking old copies. We also retain the Notification object so an edit/renewal
+  // can close it immediately while the app is open.
   if('Notification' in window && Notification.permission==='granted'){
     newlyCreated.slice(0,5).forEach(r=>{
-      new Notification('Fleet-Ops Reminder',{body:r.title+' — '+r.text});
+      closeBrowserNotification(r.recordId);
+      const n=new Notification('Fleet-Ops Reminder',{
+        body:r.title+' — '+r.text,
+        tag:'fleet-ops-reminder-'+String(r.recordId||''),
+        renotify:false
+      });
+      activeBrowserNotifications.set(String(r.recordId||''),n);
+      n.onclick=()=>{try{window.focus();}catch(e){}};
     });
   }
 }
