@@ -493,7 +493,8 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <option>Road Tax</option>
 <option>Fitness</option>
 <option>Insurance</option>
-<option>ZABS Certificate</option>
+<option>ZABS</option>
+<option>COMESA</option>
 <option>Electrical Certificate</option></select>
 </div>
 <div><label>Issue Date</label><input type="date" id="dIssueDate"></div>
@@ -510,7 +511,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 
 <div class="panel">
 <div class="actions no-print">
-<input class="search" id="documentSearch" placeholder="Search tax, fitness or insurance..." oninput="renderDocuments()">
+<input class="search" id="documentSearch" placeholder="Search compliance records..." oninput="renderDocuments()">
 </div>
 <div id="documentTable"></div>
 </div>
@@ -638,12 +639,6 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <script>
 const KEY='oasisOilFleet_v1';
 let db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[]};
-// Restore the last locally saved database before any startup seeding. This is
-// important so deleted vehicles are not mistaken for a brand-new empty fleet.
-try{
-  const savedDb=localStorage.getItem(KEY);
-  if(savedDb){ const parsed=JSON.parse(savedDb); if(parsed&&typeof parsed==='object') db=parsed; }
-}catch(e){ console.warn('Could not restore local fleet data:',e); }
 let cloudClient=null,cloudChannel=null,cloudSaveTimer=null,cloudBusy=false,cloudRetryTimer=null,cloudReady=false;
 const CLOUD_URL_KEY='https://vkefsqhzrldtirlohthv.supabase.co';
 
@@ -715,6 +710,11 @@ async function pullCloud(){
     if(hasRemote){
       db=remote;
       ensureDbShape();
+      seedRoadTax2027();
+      syncMasterFleet();
+      // Restore the imported COMESA certificates after the cloud snapshot replaces the local database.
+      seedComesaCertificates();
+      removeOldImportedElectricalCertificates();
       const importedChanged=mergeImportedServiceHistory();
       localStorage.setItem(KEY,JSON.stringify(db));
       if(importedChanged){
@@ -1057,10 +1057,20 @@ function seedRoadTax2027(){
     if(v)return v.id;
     let t=(db.trailers||[]).find(x=>normAsset(x.no)===n || normAsset(x.reg)===n);
     if(t)return t.id;
-    const id=crypto.randomUUID(); db.vehicles.push({id,no:'',reg,type:'Horse'}); return id;
+    // Some RTSA trailer records carry a trailing T (for trailer). Match that
+    // certificate form to the existing trailer without creating a vehicle.
+    if(n.endsWith('T')){
+      const tn=n.slice(0,-1);
+      t=(db.trailers||[]).find(x=>normAsset(x.no)===tn || normAsset(x.reg)===tn);
+      if(t)return t.id;
+    }
+    // Never create a new vehicle merely because a compliance document exists.
+    // Unmatched certificates are skipped rather than polluting the fleet.
+    return null;
   };
   ROAD_TAX_2027_IMPORT.forEach(([reg,road,fitness,insurance,issue])=>{
     const id=findAsset(reg);
+    if(!id)return;
     [['Road Tax',road],['Fitness',fitness],['Insurance',insurance]].forEach(([type,expiry])=>{
       const key=normAsset(reg)+'|'+type;
       if(!db.documents.some(d=>d.importKey===key || (d.type===type && normAsset(vname(d.vehicleId))===normAsset(reg) && d.expiryDate===expiry))) db.documents.push({id:crypto.randomUUID(),vehicleId:id,type,issueDate:issue,expiryDate:expiry,reminderDays:15,ref:'RTSA 2027',notes:'Imported from supplied RTSA Road Tax certificate.',importKey:key});
@@ -1068,37 +1078,36 @@ function seedRoadTax2027(){
   });
   persistDb();
 }
-const FLEET_SEED_FLAG='oasisOilFleet_masterFleetSeeded_v3';
-const shouldSeedInitialFleet=!(Array.isArray(db.vehicles)&&db.vehicles.length>0) && !localStorage.getItem(FLEET_SEED_FLAG);
-if(shouldSeedInitialFleet){
-  // Seed the supplied master fleet only once on a genuinely empty local database.
-  // After that, user deletions are permanent and are never re-created on refresh.
-  db.trailers=Array.isArray(db.trailers)?db.trailers:[];
-  // First create the master vehicles, then attach imported compliance records.
-  syncMasterFleet();
-  db.trailers=Array.isArray(db.trailers)?db.trailers:[];
-  COMPANY_TRAILERS.forEach(t=>{
-    const existing=db.trailers.find(x=>String(x.no||'').trim().toLowerCase()===t.no.toLowerCase());
-    if(existing){
-      existing.type='Tanker';
-      if(!existing.description) existing.description=t.description;
-    }else{
-      db.trailers.push({id:crypto.randomUUID(),no:t.no,reg:t.reg,type:t.type,description:t.description});
-    }
-  });
-  COMPANY_TRAILER_PAIRS.forEach(pair=>{
-    const horse=(db.vehicles||[]).find(v=>String(v.no||'').trim().toLowerCase()===pair.horseNo.toLowerCase() || String(v.reg||'').trim().toLowerCase()===pair.horseReg.toLowerCase());
-    const trailer=(db.trailers||[]).find(t=>String(t.no||'').trim().toLowerCase()===pair.trailerNo.toLowerCase());
-    if(horse && trailer && !db.pairs.some(p=>p.horseId===horse.id && p.trailerId===trailer.id)){
-      db.pairs.push({id:crypto.randomUUID(),horseId:horse.id,trailerId:trailer.id});
-    }
-  });
-  seedRoadTax2027();
-  localStorage.setItem(FLEET_SEED_FLAG,'1');
-}else{
-  db.trailers=Array.isArray(db.trailers)?db.trailers:[];
-  db.pairs=Array.isArray(db.pairs)?db.pairs:[];
+db.trailers=Array.isArray(db.trailers)?db.trailers:[];
+// Seed the trailer master BEFORE importing compliance records so trailer
+// registrations such as ARB - 1977 and ALC-445 can never be created as vehicles.
+COMPANY_TRAILERS.forEach(t=>{
+  const existing=db.trailers.find(x=>String(x.no||'').trim().toLowerCase()===t.no.toLowerCase());
+  if(existing){
+    existing.type='Tanker';
+    if(!existing.description) existing.description=t.description;
+  }else{
+    db.trailers.push({id:crypto.randomUUID(),no:t.no,reg:t.reg,type:t.type,description:t.description});
+  }
+});
+// Reconcile the two erroneous trailer-as-vehicle records created by older
+// versions of this file. Only these two known bad registrations are removed.
+const LEGACY_BAD_TRAILER_KEYS=new Set(['ARB1977','ALC445']);
+for(const bad of (db.vehicles||[]).filter(v=>LEGACY_BAD_TRAILER_KEYS.has(normAsset(vehicleNumber(v))))){
+  const tn=normAsset(vehicleNumber(bad));
+  const tr=(db.trailers||[]).find(t=>normAsset(t.no)===tn || normAsset(t.reg)===tn);
+  if(tr) (db.documents||[]).forEach(d=>{if(d.vehicleId===bad.id)d.vehicleId=tr.id;});
+  db.vehicles=db.vehicles.filter(v=>v.id!==bad.id);
 }
+seedRoadTax2027();
+db.pairs=Array.isArray(db.pairs)?db.pairs:[];
+COMPANY_TRAILER_PAIRS.forEach(pair=>{
+  const horse=(db.vehicles||[]).find(v=>String(v.no||'').trim().toLowerCase()===pair.horseNo.toLowerCase() || String(v.reg||'').trim().toLowerCase()===pair.horseReg.toLowerCase());
+  const trailer=(db.trailers||[]).find(t=>String(t.no||'').trim().toLowerCase()===pair.trailerNo.toLowerCase());
+  if(horse && trailer && !db.pairs.some(p=>p.horseId===horse.id && p.trailerId===trailer.id)){
+    db.pairs.push({id:crypto.randomUUID(),horseId:horse.id,trailerId:trailer.id});
+  }
+});
 
 
 // Preloaded driver assignments from OASIS ALL BIG VEHICLES.xlsx.
@@ -1150,9 +1159,42 @@ function syncMasterFleet(){
     }
   });
 }
+syncMasterFleet();
 persistDb();
 
+const COMESA_CERTIFICATE_IMPORT=[["BAZ3920","2026-06-26"],["BAZ4329","2026-06-26"],["BAZ3931","2026-06-26"],["BAZ4047","2026-06-26"],["BAZ4162","2026-06-26"],["BAZ4663","2026-06-26"],["BAZ4046","2026-06-26"],["BAZ4710","2026-06-26"],["BAZ4106","2026-06-26"],["BAZ4326","2026-06-26"],["BAZ4123","2026-06-26"],["BAZ4327","2026-06-26"],["BAZ4052","2026-06-26"],["BAZ4660","2026-06-26"],["CAA8073","2026-06-26"],["CAA8067","2026-06-26"],["CAA8068","2026-06-26"],["CAA8070","2026-06-26"],["BAV7107","2026-06-26"],["BAV7076","2026-06-26"],["BAV7005","2026-06-26"],["BAV7083","2026-06-26"],["BAV7223","2026-06-26"],["BAV7081","2026-06-26"],["BAV7130","2026-06-26"],["BAV7073","2026-06-26"],["BAV7225","2026-06-26"],["BAV7097","2026-06-26"],["BAV7106","2026-06-26"],["BAV7086","2026-06-26"],["CAF8474","2026-06-26"],["CAF8536","2026-06-26"],["CAF8480","2026-06-26"],["CAF8531","2026-06-26"],["CAF8482","2026-06-26"],["CAF8527","2026-06-26"],["CAF8483","2026-06-26"],["CAF8481","2026-06-26"],["CAF8484","2026-06-26"],["CAF8530","2026-06-26"],["CAF8485","2026-06-26"],["CAF8525","2026-06-26"],["CAF8514","2026-06-26"],["CAF8522","2026-06-26"],["CAF8518","2026-06-26"],["CAF8513","2026-06-26"],["CAF8520","2026-06-26"],["CAF8523","2026-06-26"],["CAF8526","2026-06-26"],["CAF8515","2026-06-26"],["CAF8528","2026-06-26"],["CAF8516","2026-06-26"],["CAF8529","2026-06-26"],["CAF8532","2026-06-25"],["CAF8648","2026-06-26"],["CAF8533","2026-06-25"],["CAF8524","2026-06-26"],["CAF8647","2026-06-25"],["CAF8521","2026-06-26"],["CAJ4325","2026-06-26"],["CAJ4321","2026-06-26"],["CAJ4202","2026-06-26"],["CAJ4201","2026-06-26"],["CAJ4203","2026-06-26"],["CAJ4205","2026-06-26"],["CAJ4324","2026-06-26"],["CAJ4326","2026-06-26"],["CAJ4197","2026-06-26"],["CAJ4198","2026-06-26"],["CAJ4204","2026-06-26"],["CAJ4195","2026-06-26"],["CAJ4191","2026-06-26"],["CAJ4200","2026-06-26"],["CAJ4192","2026-06-26"],["CAJ4196","2026-06-26"],["CAJ4189","2026-06-26"],["CAJ4322","2026-06-26"],["CAJ4323","2026-06-26"],["CAJ7195","2026-06-26"],["CAJ7194","2026-06-26"],["CAJ7179","2026-06-26"]];
+function seedComesaCertificates(){
+  db.documents=Array.isArray(db.documents)?db.documents:[];
+  const normalize=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/ZM$/,'');
+  const validKeys=new Set(COMESA_CERTIFICATE_IMPORT.map(([reg])=>normalize(reg)+'|COMESA|2027-06-30'));
+  // Remove only COMESA records previously generated by this import, so outdated/mistaken imports are cleaned up.
+  db.documents=db.documents.filter(d=>!(d.type==='COMESA' && d.notes==='Imported from supplied COMESA Yellow Card.'));
+  COMESA_CERTIFICATE_IMPORT.forEach(([reg,issueDate])=>{
+    const key=normalize(reg)+'|COMESA|2027-06-30';
+    if(!validKeys.has(key))return;
+    const n=normalize(reg);
+    const vehicle=(db.vehicles||[]).find(v=>normalize(v.reg||v.no)===n);
+    const trailer=(db.trailers||[]).find(t=>normalize(t.reg||t.no)===n);
+    const asset=vehicle||trailer;
+    if(!asset)return;
+    db.documents.push({id:crypto.randomUUID(),vehicleId:asset.id,type:'COMESA',issueDate,expiryDate:'2027-06-30',reminderDays:15,ref:'COMESA Yellow Card',notes:'Imported from supplied COMESA Yellow Card.',importKey:key});
+  });
+  persistDb();
+}
+seedComesaCertificates();
 
+// Remove the electrical-certificate records that were previously imported from the old
+// ELECTRICAL CERTIFICATE 2026.pdf. Do not seed those old records again.
+function removeOldImportedElectricalCertificates(){
+  db.documents=Array.isArray(db.documents)?db.documents:[];
+  db.documents=db.documents.filter(d => !(
+    d.type === 'Electrical Certificate' &&
+    (d.notes === 'Imported from supplied ELECTRICAL CERTIFICATE 2026.pdf.' ||
+     d.ref === 'Electrical Certificate 2026')
+  ));
+  persistDb();
+}
+removeOldImportedElectricalCertificates();
 
 // Imported service history from OASIS VEHICLE SERVICE HISTORY_latest_fixed.xlsx.
 // 99 records are preloaded. Matching uses fleet/registration number and a normalized
@@ -1255,10 +1297,9 @@ function openVehiclePicker(id){
 }
 function selectVehicle(id,vehicleId){
  let v=db.vehicles.find(x=>x.id===vehicleId);
- let t=(db.trailers||[]).find(x=>x.id===vehicleId);
- if(!v&&!t)return;
- document.getElementById(id).value=vehicleId;
- document.getElementById(id+'Search').value=v?vehicleNumber(v):(t.no||t.reg||'Trailer');
+ if(!v)return;
+ document.getElementById(id).value=v.id;
+ document.getElementById(id+'Search').value=vehicleNumber(v);
  document.getElementById(id+'Picker').classList.remove('open');
  if(id==='rVehicle')renderReport();
 }
@@ -1266,7 +1307,7 @@ function renderVehiclePicker(id){
  let search=document.getElementById(id+'Search'),list=document.getElementById(id+'List'),selected=document.getElementById(id).value;
  let q=(search.value||'').toLowerCase().trim();
  let rows=db.vehicles.filter(v=>(v.no+' '+v.reg+' '+v.type).toLowerCase().includes(q));
- if(id==='dVehicle'||id==='ueDocVehicle') rows=rows.concat((db.trailers||[]).filter(t=>(t.no+' '+t.reg+' Trailer').toLowerCase().includes(q)).map(t=>({...t,type:'Trailer'})));
+ if(id==='dVehicle') rows=rows.concat((db.trailers||[]).filter(t=>(t.no+' '+t.reg+' Trailer').toLowerCase().includes(q)).map(t=>({...t,type:'Trailer'})));
  list.innerHTML=rows.length
    ? rows.map(v=>`<button type="button" class="vehicle-picker-option ${v.id===selected?'selected':''}" onclick="selectVehicle('${id}','${v.id}')">${esc(v.no||v.reg)}${v.reg?' — '+esc(v.reg):''}${v.type?' · '+esc(v.type):''}</button>`).join('')
    : '<div class="vehicle-picker-empty">No matching vehicles found.</div>';
@@ -1434,9 +1475,9 @@ function addDocument(){
   db.documents.push({
     id:crypto.randomUUID(),vehicleId:dVehicle.value,type:dType.value,
     issueDate:dIssueDate.value,expiryDate:dExpiryDate.value,
-    reminderDays:Number(dReminderDays.value||0),ref:dRef.value.trim(),notes:(document.getElementById('dNotes')?.value||'').trim()
+    reminderDays:Number(dReminderDays.value||0),ref:dRef.value.trim(),notes:dNotes.value.trim()
   });
-  ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>document.getElementById(id).value='');
   dReminderDays.value=15;
   save();
   notifyReminders();
@@ -1446,24 +1487,15 @@ function deleteDocument(id){
 }
 function editDocument(id){
  const x=(db.documents||[]).find(d=>d.id===id);if(!x)return;
- const currentV=(db.vehicles||[]).find(v=>v.id===x.vehicleId);
- const currentT=(db.trailers||[]).find(t=>t.id===x.vehicleId);
- const currentLabel=currentV?vehicleNumber(currentV):(currentT?(currentT.no||currentT.reg||'Trailer'):'');
+ const opts=(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===x.vehicleId?'selected':''}>${esc(vehicleNumber(v))} · ${esc(v.type||'Vehicle')}</option>`).join('')+(db.trailers||[]).map(t=>`<option value="${esc(t.id)}" ${t.id===x.vehicleId?'selected':''}>${esc(t.no||t.reg||'Trailer')} · Trailer</option>`).join('');
  openUnifiedEdit('document',id,'Edit Compliance Record',`<div class="unified-edit-grid">
-  <div><label>Vehicle / Trailer</label>
-    <div class="vehicle-picker" id="ueDocVehiclePicker">
-      <input id="ueDocVehicleSearch" value="${esc(currentLabel)}" placeholder="Search or select vehicle/trailer..." autocomplete="off" onfocus="openVehiclePicker('ueDocVehicle')" oninput="renderVehiclePicker('ueDocVehicle')">
-      <input type="hidden" id="ueDocVehicle" value="${esc(x.vehicleId||'')}">
-      <div class="vehicle-picker-list" id="ueDocVehicleList"></div>
-    </div>
-  </div>
-  <div><label>Document Type</label><input id="ueDocType" value="${esc(x.type||'')}" readonly></div>
+  <div><label>Vehicle</label><select id="ueDocVehicle">${opts}</select></div>
+  <div><label>Document Type</label><input id="ueDocType" value="${esc(x.type||'')}"></div>
   <div><label>Issue Date</label><input type="date" id="ueDocIssue" value="${esc(x.issueDate||'')}"></div>
   <div><label>Expiry Date</label><input type="date" id="ueDocExpiry" value="${esc(x.expiryDate||'')}"></div>
   <div><label>Reminder (days before)</label><input type="number" min="0" id="ueDocReminder" value="${Number(x.reminderDays||0)}"></div>
   <div><label>Reference / Policy No.</label><input id="ueDocRef" value="${esc(x.ref||'')}"></div>
  </div><div style="margin-top:14px"><label>Notes</label><textarea id="ueDocNotes">${esc(x.notes||'')}</textarea></div>`);
- renderVehiclePicker('ueDocVehicle');
 }
 function saveDocumentEdit(id){
  const x=(db.documents||[]).find(d=>d.id===id);if(!x)return; const issue=document.getElementById('ueDocIssue').value,expiry=document.getElementById('ueDocExpiry').value;if(expiry<issue)return alert('Expiry date cannot be before issue date.');
@@ -1589,18 +1621,11 @@ function addVehicle(){let no=vNo.value.trim();if(!no)return alert('Enter a vehic
 function deleteVehicle(id){
   const v=(db.vehicles||[]).find(x=>x.id===id);
   if(!v)return;
+  if(db.jobs.some(j=>j.vehicleId===id)||db.expenses.some(e=>e.vehicleId===id))return alert('This vehicle has records. Delete its records first, or keep the vehicle for history.');
   if(!confirm('Delete vehicle '+(v.no||v.reg||'')+'?\n\nThis action cannot be undone.'))return;
-  // Keep historical jobs/expenses/services, but remove the vehicle itself and
-  // all live links that would otherwise make it reappear or keep reminders active.
   (db.drivers||[]).forEach(d=>{if(d.vehicleId===id)d.vehicleId='';});
-  db.pairs=(db.pairs||[]).filter(p=>p.horseId!==id);
-  db.documents=(db.documents||[]).filter(d=>d.vehicleId!==id);
-  db.vehicles=db.vehicles.filter(x=>x.id!==id);
-  persistDb();
-  // Push the deletion immediately so a quick refresh/login cannot pull an older cloud copy.
-  if(cloudClient) pushCloud();
-  refresh();
-  notifyReminders();
+  db.vehicles=db.vehicles.filter(v=>v.id!==id);
+  save();
 }
 function editVehicle(id){
   const v=(db.vehicles||[]).find(x=>x.id===id); if(!v)return;
