@@ -600,6 +600,7 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <div class="modal" id="modal"><div class="modalbox" id="modalBody"></div></div>
 <script>
 const KEY='oasisOilFleet_v1';
+const NOTIFICATION_LOG_KEY='oasisOilFleet_notifications_v1';
 let db={vehicles:[],trailers:[],pairs:[],drivers:[],jobs:[],expenses:[],services:[],breakdowns:[],documents:[]};
 let cloudClient=null,cloudChannel=null,cloudSaveTimer=null,cloudBusy=false,cloudRetryTimer=null,cloudReady=false;
 
@@ -888,8 +889,6 @@ function showCloudLock(){
   const overlay=document.getElementById('cloudFullScreenLogin');
   if(!overlay)return;
   const remembered=localStorage.getItem('oasisOilFleet_remember_cloud')==='1';
-  document.getElementById('cloudFullUrl').value=remembered?(localStorage.getItem(CLOUD_URL_KEY)||''):'';
-  document.getElementById('cloudFullKey').value=remembered?(localStorage.getItem(CLOUD_ANON_KEY)||''):'';
   document.getElementById('cloudFullRemember').checked=remembered;
   document.getElementById('cloudFullMsg').textContent='';
   overlay.style.display='flex';
@@ -2168,8 +2167,6 @@ setInterval(()=>{ renderReminders(); notifyReminders(); }, 60000);
 
 
 
-
-const NOTIFICATION_LOG_KEY='oasisOilFleet_notifications_v1';
 
 function getNotificationLog(){
   try{
