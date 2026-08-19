@@ -1,6 +1,21 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script>
+/* GitHub Pages cache-buster: always fetch a fresh copy of index.html once per navigation.
+   The _v query is unique, so the browser cannot satisfy the request from its old HTML cache. */
+(function(){
+  try {
+    var u=new URL(window.location.href);
+    if(!u.searchParams.has('_v')) {
+      u.searchParams.set('_v',Date.now().toString());
+      window.location.replace(u.href);
+    } else {
+      window.history.replaceState(null,document.title,u.pathname+u.hash);
+    }
+  } catch(e) {}
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
