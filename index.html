@@ -501,10 +501,14 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <div class="grid3">
 <div><label>Vehicle</label>
   <div class="vehicle-picker" id="dVehiclePicker">
-    <input id="dVehicleSearch" placeholder="Search vehicles..." autocomplete="off"
+    <input id="dVehicleSearch" placeholder="Search vehicles or trailers..." autocomplete="off"
            onfocus="openVehiclePicker('dVehicle')" oninput="renderVehiclePicker('dVehicle')">
     <input type="hidden" id="dVehicle">
-    <div id="dVehicleSelectedCount" style="font-size:12px;color:#64748b;margin:6px 0 4px">0 vehicles selected</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 4px">
+      <div id="dVehicleSelectedCount" style="font-size:12px;color:#64748b">0 assets selected</div>
+      <button type="button" class="secondary" style="padding:6px 10px;font-size:12px" onclick="selectAllDocumentVehicles()">Select All</button>
+      <button type="button" class="secondary" style="padding:6px 10px;font-size:12px" onclick="clearAllDocumentVehicles()">Clear All</button>
+    </div>
     <div class="vehicle-picker-list" id="dVehicleList"></div>
   </div>
 </div>
@@ -761,6 +765,8 @@ async function pullCloud(){
       ensureDbShape();
       seedRoadTax2027();
       syncMasterFleet();
+      syncMasterTrailersAndPairs();
+      persistDb();
       // Restore the imported COMESA certificates after the cloud snapshot replaces the local database.
       seedComesaCertificates();
       removeOldImportedElectricalCertificates();
@@ -823,6 +829,9 @@ function subscribeCloud(){
       if(remoteUpdated && localUpdated && remoteUpdated < localUpdated)return;
 
       db=incoming;
+      ensureDbShape();
+      if(typeof syncMasterFleet==='function')syncMasterFleet();
+      if(typeof syncMasterTrailersAndPairs==='function')syncMasterTrailersAndPairs();
       localStorage.setItem(KEY,JSON.stringify(db));
       localStorage.setItem('oasisOilFleet_lastRemoteUpdate',String(remoteUpdated||Date.now()));
       refresh();
@@ -1201,6 +1210,25 @@ COMPANY_SMALL_VEHICLES.forEach(v=>{
 
 // Master fleet sync from the supplied OASIS vehicle workbooks.
 // Adds/updates the 116 current vehicles while preserving existing IDs and history.
+
+function syncMasterTrailersAndPairs(){
+  db.trailers=Array.isArray(db.trailers)?db.trailers:[];
+  (COMPANY_TRAILERS||[]).forEach(t=>{
+    let existing=db.trailers.find(x=>String(x.no||'').trim().toLowerCase()===String(t.no||'').trim().toLowerCase() || (t.reg && String(x.reg||'').trim().toLowerCase()===String(t.reg||'').trim().toLowerCase()));
+    if(!existing){
+      db.trailers.push({id:crypto.randomUUID(),no:t.no,reg:t.reg,type:t.type,description:t.description||''});
+    }else{
+      existing.no=t.no; existing.reg=t.reg; existing.type=t.type||existing.type||'Trailer';
+      if(t.description!==undefined && !existing.description) existing.description=t.description;
+    }
+  });
+  db.pairs=Array.isArray(db.pairs)?db.pairs:[];
+  (COMPANY_TRAILER_PAIRS||[]).forEach(pair=>{
+    const horse=(db.vehicles||[]).find(v=>String(v.no||'').trim().toLowerCase()===String(pair.horseNo||'').trim().toLowerCase() || String(v.reg||'').trim().toLowerCase()===String(pair.horseReg||'').trim().toLowerCase());
+    const trailer=(db.trailers||[]).find(t=>String(t.no||'').trim().toLowerCase()===String(pair.trailerNo||'').trim().toLowerCase() || String(t.reg||'').trim().toLowerCase()===String(pair.trailerReg||'').trim().toLowerCase());
+    if(horse && trailer && !db.pairs.some(p=>p.horseId===horse.id && p.trailerId===trailer.id)) db.pairs.push({id:crypto.randomUUID(),horseId:horse.id,trailerId:trailer.id});
+  });
+}
 function syncMasterFleet(){
   const masters=[...(COMPANY_HORSES||[]),...(COMPANY_SMALL_VEHICLES||[])];
   masters.forEach(m=>{
@@ -1219,6 +1247,7 @@ function syncMasterFleet(){
   });
 }
 syncMasterFleet();
+syncMasterTrailersAndPairs();
 persistDb();
 
 const COMESA_CERTIFICATE_IMPORT=[["BAZ3920","2026-06-26"],["BAZ4329","2026-06-26"],["BAZ3931","2026-06-26"],["BAZ4047","2026-06-26"],["BAZ4162","2026-06-26"],["BAZ4663","2026-06-26"],["BAZ4046","2026-06-26"],["BAZ4710","2026-06-26"],["BAZ4106","2026-06-26"],["BAZ4326","2026-06-26"],["BAZ4123","2026-06-26"],["BAZ4327","2026-06-26"],["BAZ4052","2026-06-26"],["BAZ4660","2026-06-26"],["CAA8073","2026-06-26"],["CAA8067","2026-06-26"],["CAA8068","2026-06-26"],["CAA8070","2026-06-26"],["BAV7107","2026-06-26"],["BAV7076","2026-06-26"],["BAV7005","2026-06-26"],["BAV7083","2026-06-26"],["BAV7223","2026-06-26"],["BAV7081","2026-06-26"],["BAV7130","2026-06-26"],["BAV7073","2026-06-26"],["BAV7225","2026-06-26"],["BAV7097","2026-06-26"],["BAV7106","2026-06-26"],["BAV7086","2026-06-26"],["CAF8474","2026-06-26"],["CAF8536","2026-06-26"],["CAF8480","2026-06-26"],["CAF8531","2026-06-26"],["CAF8482","2026-06-26"],["CAF8527","2026-06-26"],["CAF8483","2026-06-26"],["CAF8481","2026-06-26"],["CAF8484","2026-06-26"],["CAF8530","2026-06-26"],["CAF8485","2026-06-26"],["CAF8525","2026-06-26"],["CAF8514","2026-06-26"],["CAF8522","2026-06-26"],["CAF8518","2026-06-26"],["CAF8513","2026-06-26"],["CAF8520","2026-06-26"],["CAF8523","2026-06-26"],["CAF8526","2026-06-26"],["CAF8515","2026-06-26"],["CAF8528","2026-06-26"],["CAF8516","2026-06-26"],["CAF8529","2026-06-26"],["CAF8532","2026-06-25"],["CAF8648","2026-06-26"],["CAF8533","2026-06-25"],["CAF8524","2026-06-26"],["CAF8647","2026-06-25"],["CAF8521","2026-06-26"],["CAJ4325","2026-06-26"],["CAJ4321","2026-06-26"],["CAJ4202","2026-06-26"],["CAJ4201","2026-06-26"],["CAJ4203","2026-06-26"],["CAJ4205","2026-06-26"],["CAJ4324","2026-06-26"],["CAJ4326","2026-06-26"],["CAJ4197","2026-06-26"],["CAJ4198","2026-06-26"],["CAJ4204","2026-06-26"],["CAJ4195","2026-06-26"],["CAJ4191","2026-06-26"],["CAJ4200","2026-06-26"],["CAJ4192","2026-06-26"],["CAJ4196","2026-06-26"],["CAJ4189","2026-06-26"],["CAJ4322","2026-06-26"],["CAJ4323","2026-06-26"],["CAJ7195","2026-06-26"],["CAJ7194","2026-06-26"],["CAJ7179","2026-06-26"]];
@@ -1351,36 +1380,135 @@ function refresh(){
  document.getElementById('mExpense').textContent=money(db.expenses.reduce((a,e)=>a+Number(e.amount||0),0));
  populateSelects();renderVehicles();renderDrivers();renderTrailers();renderServices();renderBreakdowns();renderDocuments();renderJobs();renderMinorRepairs();renderExpenses();renderReport();renderRecent();renderReminders();refreshNotificationCenter();
 }
+function getPairedTrailerForHorse(vehicleId){
+ const pair=(db.pairs||[]).find(p=>p.horseId===vehicleId || p.vehicleId===vehicleId);
+ if(!pair)return null;
+ return (db.trailers||[]).find(tr=>tr.id===pair.trailerId)||null;
+}
+function getPairedHorseForTrailer(trailerId){
+ const pair=(db.pairs||[]).find(p=>p.trailerId===trailerId);
+ if(!pair)return null;
+ return (db.vehicles||[]).find(v=>v.id===(pair.horseId||pair.vehicleId))||null;
+}
+function vehiclePickerLabel(v){
+ const base=vehicleNumber(v)||v.no||v.reg||'Vehicle';
+ const trailer=getPairedTrailerForHorse(v.id);
+ return trailer
+   ? `${base} · ${v.type||'Vehicle'} · Paired Trailer: ${trailer.no||trailer.reg||'Trailer'}${trailer.reg?' — '+trailer.reg:''}`
+   : `${base} · ${v.type||'Vehicle'} · Paired Trailer: None`;
+}
+function trailerPickerLabel(t){
+ return `${t.no||t.reg||'Trailer'}${t.reg?' — '+t.reg:''} · Trailer`;
+}
+function assetPickerLabel(id){
+ const v=(db.vehicles||[]).find(x=>x.id===id);
+ if(v)return vehiclePickerLabel(v);
+ const t=(db.trailers||[]).find(x=>x.id===id);
+ return t?trailerPickerLabel(t):'Unknown asset';
+}
+
 function openVehiclePicker(id){
  document.getElementById(id+'Picker').classList.add('open');
  renderVehiclePicker(id);
 }
+
+function getDocumentSelectedIds(){
+ const el=document.getElementById('dVehicle');
+ if(!el)return [];
+ try{
+   const raw=JSON.parse(el.value||'[]');
+   return Array.isArray(raw)?raw:[];
+ }catch(e){
+   return el.value?[el.value]:[];
+ }
+}
+function setDocumentSelectedIds(ids){
+ const unique=Array.from(new Set(ids.filter(Boolean)));
+ const el=document.getElementById('dVehicle');
+ if(el)el.value=JSON.stringify(unique);
+ const count=document.getElementById('dVehicleSelectedCount');
+ if(count){const vc=unique.filter(id=>(db.vehicles||[]).some(v=>v.id===id)).length;const tc=unique.filter(id=>(db.trailers||[]).some(t=>t.id===id)).length;count.textContent=`${unique.length} selected (${vc} vehicles, ${tc} trailers)`;}
+}
+function toggleDocumentVehicle(id){
+ const ids=getDocumentSelectedIds();
+ const pos=ids.indexOf(id);
+ if(pos>=0)ids.splice(pos,1); else ids.push(id);
+ setDocumentSelectedIds(ids);
+ renderVehiclePicker('dVehicle');
+}
+function selectAllDocumentVehicles(){
+ const ids=(db.vehicles||[]).map(v=>v.id).concat((db.trailers||[]).map(t=>t.id));
+ setDocumentSelectedIds(ids);
+ renderVehiclePicker('dVehicle');
+}
+function clearAllDocumentVehicles(){
+ setDocumentSelectedIds([]);
+ renderVehiclePicker('dVehicle');
+}
+
 function selectVehicle(id,vehicleId){
- let v=db.vehicles.find(x=>x.id===vehicleId);
- if(!v)return;
- document.getElementById(id).value=v.id;
- document.getElementById(id+'Search').value=vehicleNumber(v);
+ if(id==='dVehicle'){
+   toggleDocumentVehicle(vehicleId);
+   return;
+ }
+ let v=(db.vehicles||[]).find(x=>x.id===vehicleId);
+ let t=(db.trailers||[]).find(x=>x.id===vehicleId);
+ if(!v && !t)return;
+ document.getElementById(id).value=vehicleId;
+ document.getElementById(id+'Search').value=assetPickerLabel(vehicleId);
  document.getElementById(id+'Picker').classList.remove('open');
  if(id==='rVehicle')renderReport();
 }
+
 function renderVehiclePicker(id){
- let search=document.getElementById(id+'Search'),list=document.getElementById(id+'List'),selected=document.getElementById(id).value;
+ let search=document.getElementById(id+'Search'),list=document.getElementById(id+'List');
+ if(!search||!list)return;
  let q=(search.value||'').toLowerCase().trim();
- let rows=db.vehicles.filter(v=>(v.no+' '+v.reg+' '+v.type).toLowerCase().includes(q));
- if(id==='dVehicle') rows=rows.concat((db.trailers||[]).filter(t=>(t.no+' '+t.reg+' Trailer').toLowerCase().includes(q)).map(t=>({...t,type:'Trailer'})));
+
+ // Compliance: vehicles AND trailers are selectable assets.
+ if(id==='dVehicle'){
+   const selected=new Set(getDocumentSelectedIds());
+   let vehicles=(db.vehicles||[]).filter(v=>vehiclePickerLabel(v).toLowerCase().includes(q));
+   let trailers=(db.trailers||[]).filter(t=>trailerPickerLabel(t).toLowerCase().includes(q));
+   const rows=[
+     ...vehicles.map(v=>({id:v.id,label:vehiclePickerLabel(v),kind:'vehicle'})),
+     ...trailers.map(t=>({id:t.id,label:trailerPickerLabel(t),kind:'trailer'}))
+   ];
+   const vehicleRows=rows.filter(x=>x.kind==='vehicle');
+   const trailerRows=rows.filter(x=>x.kind==='trailer');
+   const renderRows=(items)=>items.map(x=>`<label class="vehicle-picker-option ${selected.has(x.id)?'selected':''}" style="display:flex;align-items:flex-start;gap:9px;cursor:pointer">
+          <input type="checkbox" ${selected.has(x.id)?'checked':''} onchange="toggleDocumentVehicle('${x.id}')" style="margin-top:3px">
+          <span>${esc(x.label)}</span>
+        </label>`).join('');
+   list.innerHTML=(vehicleRows.length?'<div style="padding:8px 12px;font-weight:800;color:#64748b;background:#f7f9fc;border-bottom:1px solid #e2e8f0">VEHICLES ('+vehicleRows.length+')</div>'+renderRows(vehicleRows):'')
+     +(trailerRows.length?'<div style="padding:8px 12px;font-weight:800;color:#64748b;background:#f7f9fc;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0">TRAILERS ('+trailerRows.length+')</div>'+renderRows(trailerRows):'')
+     || '<div class="vehicle-picker-empty">No matching vehicles or trailers found.</div>';
+   return;
+ }
+
+ // All normal vehicle selectors show the paired trailer beside the vehicle.
+ let rows=(db.vehicles||[]).filter(v=>vehiclePickerLabel(v).toLowerCase().includes(q));
  list.innerHTML=rows.length
-   ? rows.map(v=>`<button type="button" class="vehicle-picker-option ${v.id===selected?'selected':''}" onclick="selectVehicle('${id}','${v.id}')">${esc(v.no||v.reg)}${v.reg?' — '+esc(v.reg):''}${v.type?' · '+esc(v.type):''}</button>`).join('')
+   ? rows.map(v=>`<button type="button" class="vehicle-picker-option" onclick="selectVehicle('${id}','${v.id}')">${esc(vehiclePickerLabel(v))}</button>`).join('')
    : '<div class="vehicle-picker-empty">No matching vehicles found.</div>';
 }
+
 function populateSelects(){
- ['jVehicle','eVehicle','rVehicle','sVehicle','bVehicle','dVehicle'].forEach(id=>{
-   let current=document.getElementById(id).value;
-   let v=db.vehicles.find(x=>x.id===current);
-   let t=(db.trailers||[]).find(x=>x.id===current);
-   if(v)document.getElementById(id+'Search').value=vehicleNumber(v);
-   else if(t)document.getElementById(id+'Search').value=t.no||t.reg||'';
+ ['jVehicle','eVehicle','rVehicle','sVehicle','bVehicle'].forEach(id=>{
+   const el=document.getElementById(id);
+   if(!el)return;
+   const current=el.value;
+   const v=(db.vehicles||[]).find(x=>x.id===current);
+   const t=(db.trailers||[]).find(x=>x.id===current);
+   const search=document.getElementById(id+'Search');
+   if(search){
+     if(v)search.value=vehiclePickerLabel(v);
+     else if(t)search.value=trailerPickerLabel(t);
+     else if(!current)search.value='';
+   }
    renderVehiclePicker(id);
  });
+ renderVehiclePicker('dVehicle');
 }
 document.addEventListener('click',e=>{
  document.querySelectorAll('.vehicle-picker.open').forEach(p=>{
@@ -1497,7 +1625,7 @@ function renderServices(){
   normalizeServiceHistory();
   let q=(serviceSearch?.value||'').toLowerCase();
   let rows=db.services.slice().sort((a,b)=>b.date.localeCompare(a.date))
-    .filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
+    .filter(x=>JSON.stringify({...x,vehicle:complianceAssetLabel(x.vehicleId)}).toLowerCase().includes(q));
   serviceTable.innerHTML=rows.length?`<table>
   <tr><th>Service Date</th><th>Vehicle</th><th>Mileage at Service</th><th>Work / Notes</th><th>Next Service Mileage</th><th>Serviced By</th><th></th></tr>
   ${rows.map(x=>{
@@ -1556,70 +1684,36 @@ function saveDocument(){
   const type=document.getElementById('dType')?.value||'';
   const issueDate=document.getElementById('dIssueDate')?.value||'';
   const expiryDate=document.getElementById('dExpiryDate')?.value||'';
-  const reminderDays=Number(document.getElementById('dReminder')?.value||15);
+  const reminderDays=Math.max(0,Number(document.getElementById('dReminderDays')?.value||15));
   const ref=(document.getElementById('dRef')?.value||'').trim();
-  const notes=(document.getElementById('dNotes')?.value||'').trim();
+  const selectedIds=getDocumentSelectedIds();
 
-  const picker=document.getElementById('dVehicle');
-  let selectedIds=[];
-  if(picker){
-    selectedIds=Array.from(picker.selectedOptions||[])
-      .map(o=>o.value)
-      .filter(Boolean);
-  }
-
-  // Support the existing single-select/search UI if present.
-  if(!selectedIds.length){
-    const single=document.getElementById('dVehicleSearch')?.dataset?.vehicleId ||
-      document.getElementById('dVehicle')?.value || '';
-    if(single) selectedIds=[single];
-  }
-
-  if(!selectedIds.length){
-    alert('Select at least one vehicle.');
-    return;
-  }
-  if(!type){
-    alert('Select a compliance type.');
-    return;
-  }
-  if(!expiryDate){
-    alert('Enter the expiry / due date.');
-    return;
-  }
+  if(!selectedIds.length)return alert('Select at least one vehicle or trailer.');
+  if(!type)return alert('Select a compliance type.');
+  if(!expiryDate)return alert('Enter the expiry / due date.');
+  if(issueDate && expiryDate<issueDate)return alert('Expiry date cannot be before issue date.');
 
   db.documents=Array.isArray(db.documents)?db.documents:[];
-
-  // One independent record is created for every selected vehicle.
-  // This keeps reminders, editing and reporting vehicle-specific.
-  selectedIds.forEach(vehicleId=>{
-    const candidate={
+  selectedIds.forEach(assetId=>{
+    db.documents.push({
       id:crypto.randomUUID(),
-      vehicleId,
+      vehicleId:assetId,
       type,
       issueDate,
       expiryDate,
       reminderDays,
       ref,
-      notes
-    };
-    db.documents.push(candidate);
+      notes:''
+    });
   });
 
   persistDb();
-  if(typeof renderDocuments==='function') renderDocuments();
-  if(typeof renderDashboard==='function') renderDashboard();
-
-  // Reset only the vehicle selection and common fields after a successful batch save.
-  if(picker) Array.from(picker.options).forEach(o=>o.selected=false);
-  const search=document.getElementById('dVehicleSearch');
-  if(search) {
-    search.value='';
-    if(search.dataset) delete search.dataset.vehicleId;
-  }
-  ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.value='';
-  });
+  if(typeof renderDocuments==='function')renderDocuments();
+  if(typeof renderDashboard==='function')renderDashboard();
+  setDocumentSelectedIds([]);
+  const search=document.getElementById('dVehicleSearch'); if(search)search.value='';
+  ['dIssueDate','dExpiryDate','dRef'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderVehiclePicker('dVehicle');
 }
 function deleteDocument(id){
   if(confirm('Delete this compliance record?')){db.documents=db.documents.filter(x=>x.id!==id);save();notifyReminders();}
@@ -1628,7 +1722,7 @@ function editDocument(id){
  const x=(db.documents||[]).find(d=>d.id===id);if(!x)return;
  const opts=(db.vehicles||[]).map(v=>`<option value="${esc(v.id)}" ${v.id===x.vehicleId?'selected':''}>${esc(vehicleNumber(v))} · ${esc(v.type||'Vehicle')}</option>`).join('')+(db.trailers||[]).map(t=>`<option value="${esc(t.id)}" ${t.id===x.vehicleId?'selected':''}>${esc(t.no||t.reg||'Trailer')} · Trailer</option>`).join('');
  openUnifiedEdit('document',id,'Edit Compliance Record',`<div class="unified-edit-grid">
-  <div><label>Vehicle</label><select id="ueDocVehicle">${opts}</select></div>
+  <div><label>Vehicle / Trailer</label><select id="ueDocVehicle">${opts}</select></div>
   <div><label>Document Type</label><input id="ueDocType" value="${esc(x.type||'')}"></div>
   <div><label>Issue Date</label><input type="date" id="ueDocIssue" value="${esc(x.issueDate||'')}"></div>
   <div><label>Expiry Date</label><input type="date" id="ueDocExpiry" value="${esc(x.expiryDate||'')}"></div>
@@ -1641,6 +1735,12 @@ function saveDocumentEdit(id){
  x.vehicleId=document.getElementById('ueDocVehicle').value;x.type=document.getElementById('ueDocType').value.trim();x.issueDate=issue;x.expiryDate=expiry;x.reminderDays=Math.max(0,Number(document.getElementById('ueDocReminder').value||0));x.ref=document.getElementById('ueDocRef').value.trim();x.notes=document.getElementById('ueDocNotes').value.trim();closeUnifiedEdit();save();renderDocuments();notifyReminders();
 }
 
+function complianceAssetLabel(id){
+ const v=(db.vehicles||[]).find(x=>x.id===id);
+ if(v)return vehiclePickerLabel(v);
+ const t=(db.trailers||[]).find(x=>x.id===id);
+ return t?trailerPickerLabel(t):vname(id);
+}
 function renderDocuments(){
   let q=(documentSearch?.value||'').toLowerCase();
   let rows=db.documents.slice().sort((a,b)=>a.expiryDate.localeCompare(b.expiryDate))
@@ -1650,7 +1750,7 @@ function renderDocuments(){
   ${rows.map(x=>{
     let days=dateDiffDays(x.expiryDate);
     return `<tr>
-      <td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type)}</td>
+      <td><b>${esc(complianceAssetLabel(x.vehicleId))}</b></td><td>${esc(x.type)}</td>
       <td>${esc(x.issueDate)}</td><td>${esc(x.expiryDate)}</td>
       <td>${reminderBadge(days,x.type,x.reminderDays)}<br><small>Reminder: ${Number(x.reminderDays||0)} days before</small></td>
       <td>${esc(x.ref||'-')}<br><small>${esc(x.notes||'')}</small></td>
@@ -3193,84 +3293,207 @@ function saveDriverModal(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)r
 
 <script id="targeted-report-and-compliance-fix">
 (function(){
-  const originalRenderVehiclePicker = window.renderVehiclePicker;
+  // Always restore the master trailer list and horse/trailer pairings after
+  // Supabase replaces the local database snapshot.
+  function ensureMasterTrailerAssets(){
+    try{
+      if(typeof ensureDbShape==='function') ensureDbShape();
+      db.trailers=Array.isArray(db.trailers)?db.trailers:[];
+      const masters=Array.isArray(COMPANY_TRAILERS)?COMPANY_TRAILERS:[];
+      masters.forEach(t=>{
+        const no=String(t.no||'').trim().toLowerCase();
+        const reg=String(t.reg||'').trim().toLowerCase();
+        let existing=db.trailers.find(x=>
+          String(x.no||'').trim().toLowerCase()===no ||
+          (reg && String(x.reg||'').trim().toLowerCase()===reg)
+        );
+        if(!existing){
+          db.trailers.push({id:crypto.randomUUID(),no:t.no||'',reg:t.reg||'',type:t.type||'Trailer',description:t.description||''});
+        }else{
+          existing.no=t.no||existing.no||'';
+          existing.reg=t.reg||existing.reg||'';
+          existing.type=t.type||existing.type||'Trailer';
+          if(t.description && !existing.description) existing.description=t.description;
+        }
+      });
+      if(typeof syncMasterTrailersAndPairs==='function') syncMasterTrailersAndPairs();
+    }catch(e){ console.error('Trailer master sync failed:',e); }
+  }
 
-  window.renderVehiclePicker = function(id){
-    if(id !== 'dVehicle') return originalRenderVehiclePicker ? originalRenderVehiclePicker(id) : undefined;
-    const search=document.getElementById('dVehicleSearch');
-    const list=document.getElementById('dVehicleList');
+  function selectedDocumentIds(){
     const hidden=document.getElementById('dVehicle');
-    const countEl=document.getElementById('dVehicleSelectedCount');
-    if(!search || !list || !hidden) return;
+    if(!hidden)return [];
+    try{
+      const parsed=JSON.parse(hidden.value||'[]');
+      if(Array.isArray(parsed)) return parsed.filter(Boolean);
+    }catch(e){}
+    return String(hidden.value||'').split(',').map(x=>x.trim()).filter(Boolean);
+  }
 
-    const selectedIds=new Set(String(hidden.value||'').split(',').map(x=>x.trim()).filter(Boolean));
+  function setSelectedDocumentIds(ids){
+    const unique=Array.from(new Set((ids||[]).filter(Boolean).map(String)));
+    const hidden=document.getElementById('dVehicle');
+    if(hidden) hidden.value=JSON.stringify(unique);
+    const count=document.getElementById('dVehicleSelectedCount');
+    if(count){
+      const vc=unique.filter(id=>(db.vehicles||[]).some(v=>String(v.id)===String(id))).length;
+      const tc=unique.filter(id=>(db.trailers||[]).some(t=>String(t.id)===String(id))).length;
+      count.textContent=`${unique.length} selected (${vc} vehicles, ${tc} trailers)`;
+    }
+  }
+
+  window.renderVehiclePicker=function(id){
+    ensureMasterTrailerAssets();
+    const search=document.getElementById(id+'Search');
+    const list=document.getElementById(id+'List');
+    if(!search||!list)return;
     const q=(search.value||'').toLowerCase().trim();
-    const rows=(db.vehicles||[]).filter(v=>(v.no+' '+v.reg+' '+v.type).toLowerCase().includes(q));
 
-    if(countEl) countEl.textContent=`${selectedIds.size} vehicle${selectedIds.size===1?'':'s'} selected`;
-    list.innerHTML=rows.length ? rows.map(v=>{
-      const checked=selectedIds.has(String(v.id));
-      return `<label class="vehicle-picker-option ${checked?'selected':''}" style="display:flex;align-items:center;gap:9px;cursor:pointer;text-align:left;">
-        <input type="checkbox" ${checked?'checked':''} onchange="selectVehicle('dVehicle','${v.id}')" style="width:16px;height:16px;flex:0 0 auto;">
-        <span>${esc(v.no||v.reg||'Vehicle')}${v.reg?' — '+esc(v.reg):''}${v.type?' · '+esc(v.type):''}</span>
-      </label>`;
-    }).join('') : '<div class="vehicle-picker-empty">No matching vehicles found.</div>';
-  };
+    if(id==='dVehicle'){
+      const selected=new Set(selectedDocumentIds());
+      const vehicles=(db.vehicles||[]).filter(v=>vehiclePickerLabel(v).toLowerCase().includes(q));
+      const trailers=(db.trailers||[]).filter(t=>trailerPickerLabel(t).toLowerCase().includes(q));
 
-  window.openVehiclePicker = function(id){
-    const picker=document.getElementById(id+'Picker');
-    if(picker) picker.classList.add('open');
-    window.renderVehiclePicker(id);
-  };
+      const renderRows=(items,kind)=>items.map(x=>{
+        const id=String(x.id);
+        const checked=selected.has(id);
+        const label=kind==='vehicle'?vehiclePickerLabel(x):trailerPickerLabel(x);
+        return `<label class="vehicle-picker-option ${checked?'selected':''}" style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;text-align:left;">
+          <input type="checkbox" ${checked?'checked':''} onchange="selectVehicle('dVehicle','${id}')" style="width:16px;height:16px;flex:0 0 auto;margin-top:3px;">
+          <span>${esc(label)}</span>
+        </label>`;
+      }).join('');
 
-  window.selectVehicle = function(id,vehicleId){
-    if(id !== 'dVehicle'){
-      const v=(db.vehicles||[]).find(x=>x.id===vehicleId);
-      if(!v)return;
-      const hidden=document.getElementById(id), search=document.getElementById(id+'Search');
-      if(hidden) hidden.value=v.id;
-      if(search) search.value=vehicleNumber(v);
-      const picker=document.getElementById(id+'Picker');
-      if(picker) picker.classList.remove('open');
-      if(id==='rVehicle' && typeof renderReport==='function') renderReport();
+      list.innerHTML=
+        (trailers.length
+          ? `<div style="padding:8px 12px;font-weight:800;color:#64748b;background:#f7f9fc;border-bottom:1px solid #e2e8f0;position:sticky;top:0;z-index:2">TRAILERS (${trailers.length})</div>${renderRows(trailers,'trailer')}`
+          : '')+
+        (vehicles.length
+          ? `<div style="padding:8px 12px;font-weight:800;color:#64748b;background:#f7f9fc;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0">VEHICLES (${vehicles.length})</div>${renderRows(vehicles,'vehicle')}`
+          : '')+
+        ((!vehicles.length&&!trailers.length)
+          ? '<div class="vehicle-picker-empty">No matching vehicles or trailers found.</div>'
+          : '');
       return;
     }
 
-    const hidden=document.getElementById('dVehicle');
-    if(!hidden)return;
-    const ids=new Set(String(hidden.value||'').split(',').map(x=>x.trim()).filter(Boolean));
-    const key=String(vehicleId);
-    if(ids.has(key)) ids.delete(key); else ids.add(key);
-    hidden.value=Array.from(ids).join(',');
+    // Every normal vehicle selector shows the paired trailer.
+    const vehicles=(db.vehicles||[]).filter(v=>vehiclePickerLabel(v).toLowerCase().includes(q));
+    list.innerHTML=vehicles.length
+      ? vehicles.map(v=>`<button type="button" class="vehicle-picker-option" onclick="selectVehicle('${id}','${v.id}')">${esc(vehiclePickerLabel(v))}</button>`).join('')
+      : '<div class="vehicle-picker-empty">No matching vehicles found.</div>';
+  };
 
+  window.selectVehicle=function(id,assetId){
+    ensureMasterTrailerAssets();
+
+    if(id==='dVehicle'){
+      const ids=selectedDocumentIds();
+      const key=String(assetId);
+      const pos=ids.findIndex(x=>String(x)===key);
+      if(pos>=0) ids.splice(pos,1); else ids.push(key);
+      setSelectedDocumentIds(ids);
+      window.renderVehiclePicker('dVehicle');
+      return;
+    }
+
+    const v=(db.vehicles||[]).find(x=>String(x.id)===String(assetId));
+    const t=(db.trailers||[]).find(x=>String(x.id)===String(assetId));
+    if(!v&&!t)return;
+
+    const hidden=document.getElementById(id);
+    const search=document.getElementById(id+'Search');
+    if(hidden) hidden.value=assetId;
+    if(search) search.value=v?vehiclePickerLabel(v):trailerPickerLabel(t);
+
+    const picker=document.getElementById(id+'Picker');
+    if(picker)picker.classList.remove('open');
+    if(id==='rVehicle'&&typeof renderReport==='function')renderReport();
+  };
+
+  window.selectAllDocumentVehicles=function(){
+    ensureMasterTrailerAssets();
+    const ids=(db.vehicles||[]).map(v=>String(v.id))
+      .concat((db.trailers||[]).map(t=>String(t.id)));
+    setSelectedDocumentIds(ids);
     const search=document.getElementById('dVehicleSearch');
-    if(search) search.value='';
+    if(search)search.value='';
     window.renderVehiclePicker('dVehicle');
   };
 
-  window.saveDocument = function(){
+  window.clearAllDocumentVehicles=function(){
+    setSelectedDocumentIds([]);
+    const search=document.getElementById('dVehicleSearch');
+    if(search)search.value='';
+    window.renderVehiclePicker('dVehicle');
+  };
+
+  window.saveDocument=function(){
+    ensureMasterTrailerAssets();
     const type=document.getElementById('dType')?.value||'';
     const issueDate=document.getElementById('dIssueDate')?.value||'';
     const expiryDate=document.getElementById('dExpiryDate')?.value||'';
-    const reminderDays=Number(document.getElementById('dReminderDays')?.value||15);
+    const reminderDays=Math.max(0,Number(document.getElementById('dReminderDays')?.value||15));
     const ref=(document.getElementById('dRef')?.value||'').trim();
-    const notes=(document.getElementById('dNotes')?.value||'').trim();
-    const selectedIds=String(document.getElementById('dVehicle')?.value||'').split(',').map(x=>x.trim()).filter(Boolean);
+    const selectedIds=selectedDocumentIds();
 
-    if(!selectedIds.length){alert('Select at least one vehicle.');return;}
+    if(!selectedIds.length){alert('Select at least one vehicle or trailer.');return;}
     if(!type){alert('Select a compliance type.');return;}
     if(!expiryDate){alert('Enter the expiry / due date.');return;}
+    if(issueDate&&expiryDate<issueDate){alert('Expiry date cannot be before issue date.');return;}
 
     db.documents=Array.isArray(db.documents)?db.documents:[];
-    selectedIds.forEach(vehicleId=>db.documents.push({id:crypto.randomUUID(),vehicleId,type,issueDate,expiryDate,reminderDays,ref,notes}));
-    persistDb();
-    if(typeof renderDocuments==='function') renderDocuments();
-    if(typeof renderDashboard==='function') renderDashboard();
+    selectedIds.forEach(assetId=>{
+      db.documents.push({
+        id:crypto.randomUUID(),
+        vehicleId:assetId,
+        type,
+        issueDate,
+        expiryDate,
+        reminderDays,
+        ref,
+        notes:''
+      });
+    });
 
-    const hidden=document.getElementById('dVehicle'); if(hidden) hidden.value='';
-    const search=document.getElementById('dVehicleSearch'); if(search) search.value='';
-    ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    persistDb();
+    if(typeof renderDocuments==='function')renderDocuments();
+    if(typeof renderDashboard==='function')renderDashboard();
+
+    setSelectedDocumentIds([]);
+    const search=document.getElementById('dVehicleSearch');
+    if(search)search.value='';
+    ['dIssueDate','dExpiryDate','dRef'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el)el.value='';
+    });
     window.renderVehiclePicker('dVehicle');
+  };
+
+  // The form button calls addDocument(), so keep that name working.
+  window.addDocument=function(){ return window.saveDocument(); };
+
+  // Make the service-history edit picker show the paired trailer too.
+  window.renderServiceEditVehiclePicker=function(){
+    ensureMasterTrailerAssets();
+    const search=document.getElementById('editServiceVehicleSearch');
+    const list=document.getElementById('editServiceVehicleList');
+    if(!search||!list)return;
+    const selected=document.getElementById('editServiceVehicle')?.value||'';
+    const q=(search.value||'').toLowerCase().trim();
+    const rows=(db.vehicles||[]).filter(v=>vehiclePickerLabel(v).toLowerCase().includes(q));
+    list.innerHTML=rows.length
+      ? rows.map(v=>`<button type="button" class="vehicle-picker-option ${String(v.id)===String(selected)?'selected':''}" onclick="selectServiceEditVehicle('${v.id}')">${esc(vehiclePickerLabel(v))}</button>`).join('')
+      : '<div class="vehicle-picker-empty">No matching vehicles found.</div>';
+  };
+
+  const originalSelectServiceEditVehicle=window.selectServiceEditVehicle;
+  window.selectServiceEditVehicle=function(vehicleId){
+    const v=(db.vehicles||[]).find(x=>String(x.id)===String(vehicleId));
+    if(!v)return;
+    document.getElementById('editServiceVehicle').value=v.id;
+    document.getElementById('editServiceVehicleSearch').value=vehiclePickerLabel(v);
+    document.getElementById('editServiceVehiclePicker').classList.remove('open');
   };
 
   // Keep report rendering errors from being hidden behind a generic message.
@@ -3283,21 +3506,39 @@ function saveDriverModal(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)r
     }catch(err){
       console.error('Report render failed:',err);
       const out=document.getElementById('reportOutput');
-      if(out){out.style.display='block';out.innerHTML='<div class="panel"><div class="empty">The report could not be rendered. Please try again.</div></div>';}
+      if(out){
+        out.style.display='block';
+        out.innerHTML='<div class="panel"><div class="empty">The report could not be rendered. Please try again.</div></div>';
+      }
     }
   };
 
   const originalPrintReport=window.printReport;
   window.printReport=function(){
     try{
-      if(typeof window.renderReport==='function') window.renderReport();
+      if(typeof window.renderReport==='function')window.renderReport();
       const reports=document.getElementById('reports');
-      if(reports) reports.classList.add('printing');
-      setTimeout(()=>{window.print();setTimeout(()=>{if(reports)reports.classList.remove('printing');},500);},50);
-    }catch(err){console.error('Print report failed:',err);if(originalPrintReport)originalPrintReport();}
+      if(reports)reports.classList.add('printing');
+      setTimeout(()=>{
+        window.print();
+        setTimeout(()=>{if(reports)reports.classList.remove('printing');},500);
+      },50);
+    }catch(err){
+      console.error('Print report failed:',err);
+      if(originalPrintReport)originalPrintReport();
+    }
   };
 
-  window.addEventListener('load',()=>setTimeout(()=>window.renderVehiclePicker('dVehicle'),100));
+  function refreshAssetPickers(){
+    try{
+      ensureMasterTrailerAssets();
+      window.renderVehiclePicker('dVehicle');
+      ['sVehicle','bVehicle','jVehicle','eVehicle','rVehicle'].forEach(id=>window.renderVehiclePicker(id));
+    }catch(e){console.error(e);}
+  }
+
+  window.addEventListener('load',()=>setTimeout(refreshAssetPickers,150));
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(refreshAssetPickers,150));
 })();
 </script>
 
