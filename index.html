@@ -1340,11 +1340,15 @@ function openVehiclePicker(id){
  renderVehiclePicker(id);
 }
 function selectVehicle(id,vehicleId){
- let v=db.vehicles.find(x=>x.id===vehicleId);
- if(!v)return;
- document.getElementById(id).value=v.id;
- document.getElementById(id+'Search').value=vehicleNumber(v);
- document.getElementById(id+'Picker').classList.remove('open');
+ let v=(db.vehicles||[]).find(x=>x.id===vehicleId);
+ let t=(db.trailers||[]).find(x=>x.id===vehicleId);
+ if(!v&&!t)return;
+ const value=v?v.id:t.id;
+ const label=v?vehicleNumber(v):(t.no||t.reg||'Trailer');
+ const hidden=document.getElementById(id), search=document.getElementById(id+'Search'), picker=document.getElementById(id+'Picker');
+ if(hidden)hidden.value=value;
+ if(search)search.value=label;
+ if(picker)picker.classList.remove('open');
  if(id==='rVehicle')renderReport();
 }
 function renderVehiclePicker(id){
@@ -1537,17 +1541,33 @@ function renderBreakdowns(){
   breakdownTable.innerHTML=rows.length?`<table><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Severity</th><th>Status</th><th>Location</th><th>Repair Cost</th><th>Actions</th></tr>${rows.map(x=>`<tr><td>${esc(x.date||'')}${x.time?' '+esc(x.time):''}</td><td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type||'')}</td><td>${esc(x.severity||'')}</td><td><span class="badge ${x.status==='Completed'?'done':'open'}">${esc(x.status||'')}</span></td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td><button class="primary edit-action" type="button" onclick="editBreakdown('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteBreakdown('${x.id}')">Delete</button></td></tr>`).join('')}</table>`:'<div class="empty">No breakdown records found.</div>';
 }
 function addDocument(){
-  if(!dVehicle.value)return alert('Select a vehicle.');
-  if(!dIssueDate.value || !dExpiryDate.value)return alert('Enter both issue and expiry dates.');
-  if(dExpiryDate.value<dIssueDate.value)return alert('Expiry date cannot be before issue date.');
+  const vehicleEl=document.getElementById('dVehicle');
+  const typeEl=document.getElementById('dType');
+  const issueEl=document.getElementById('dIssueDate');
+  const expiryEl=document.getElementById('dExpiryDate');
+  const reminderEl=document.getElementById('dReminderDays');
+  const refEl=document.getElementById('dRef');
+  const notesEl=document.getElementById('dNotes');
+  if(!vehicleEl?.value)return alert('Select a vehicle.');
+  if(!issueEl?.value || !expiryEl?.value)return alert('Enter both issue and expiry dates.');
+  if(expiryEl.value<issueEl.value)return alert('Expiry date cannot be before issue date.');
+  db.documents=Array.isArray(db.documents)?db.documents:[];
   db.documents.push({
-    id:crypto.randomUUID(),vehicleId:dVehicle.value,type:dType.value,
-    issueDate:dIssueDate.value,expiryDate:dExpiryDate.value,
-    reminderDays:Number(dReminderDays.value||0),ref:dRef.value.trim(),notes:dNotes.value.trim()
+    id:crypto.randomUUID(),
+    vehicleId:vehicleEl.value,
+    type:typeEl?.value||'',
+    issueDate:issueEl.value,
+    expiryDate:expiryEl.value,
+    reminderDays:Math.max(0,Number(reminderEl?.value||0)),
+    ref:(refEl?.value||'').trim(),
+    notes:(notesEl?.value||'').trim()
   });
-  ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>document.getElementById(id).value='');
-  dReminderDays.value=15;
-  save();
+  ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  if(reminderEl)reminderEl.value=15;
+  if(vehicleEl)vehicleEl.value='';
+  const searchEl=document.getElementById('dVehicleSearch'); if(searchEl)searchEl.value='';
+  persistDb();
+  renderDocuments();
   notifyReminders();
 }
 function deleteDocument(id){
@@ -1566,13 +1586,13 @@ function editDocument(id){
  </div><div style="margin-top:14px"><label>Notes</label><textarea id="ueDocNotes">${esc(x.notes||'')}</textarea></div>`);
 }
 function saveDocumentEdit(id){
- const x=(db.documents||[]).find(d=>d.id===id);if(!x)return; const issue=document.getElementById('ueDocIssue').value,expiry=document.getElementById('ueDocExpiry').value;if(expiry<issue)return alert('Expiry date cannot be before issue date.');
+ const x=(db.documents||[]).find(d=>d.id===id);if(!x)return; const issue=document.getElementById('ueDocIssue').value,expiry=document.getElementById('ueDocExpiry').value;if(!issue||!expiry)return alert('Enter both issue and expiry dates.');if(expiry<issue)return alert('Expiry date cannot be before issue date.');
  x.vehicleId=document.getElementById('ueDocVehicle').value;x.type=document.getElementById('ueDocType').value.trim();x.issueDate=issue;x.expiryDate=expiry;x.reminderDays=Math.max(0,Number(document.getElementById('ueDocReminder').value||0));x.ref=document.getElementById('ueDocRef').value.trim();x.notes=document.getElementById('ueDocNotes').value.trim();closeUnifiedEdit();save();renderDocuments();notifyReminders();
 }
 
 function renderDocuments(){
   let q=(documentSearch?.value||'').toLowerCase();
-  let rows=db.documents.slice().sort((a,b)=>a.expiryDate.localeCompare(b.expiryDate))
+  let rows=(db.documents||[]).slice().sort((a,b)=>String(a.expiryDate||'').localeCompare(String(b.expiryDate||'')) )
     .filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
   documentTable.innerHTML=rows.length?`<table>
   <tr><th>Vehicle</th><th>Type</th><th>Issue Date</th><th>Expiry Date</th><th>Reminder</th><th>Reference</th><th></th></tr>
