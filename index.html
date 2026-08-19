@@ -1,6 +1,41 @@
 <!doctype html>
 <html lang="en">
 <head>
+<!-- FLEET-OPS-AUTO-UPDATE -->
+<script>
+(function(){
+  'use strict';
+  const UPDATE_CHECK_MS=60000;
+  const PAGE_URL=location.href.split('#')[0].split('?')[0];
+  const VERSION_KEY='fleetOpsHtmlVersion';
+  async function getVersion(url){
+    try{
+      const res=await fetch(url+'?_fleetops_check='+Date.now(),{cache:'no-store',headers:{'Cache-Control':'no-cache'}});
+      if(!res.ok)return null;
+      const html=await res.text();
+      if(window.crypto&&crypto.subtle){
+        const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(html));
+        return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+      }
+      let h=0; for(let i=0;i<html.length;i++)h=((h<<5)-h)+html.charCodeAt(i)|0; return String(h);
+    }catch(e){return null;}
+  }
+  async function checkForUpdate(){
+    const v=await getVersion(PAGE_URL); if(!v)return;
+    const old=sessionStorage.getItem(VERSION_KEY);
+    if(old&&old!==v){
+      sessionStorage.setItem(VERSION_KEY,v);
+      location.replace(PAGE_URL+'?_fleetops_reload='+encodeURIComponent(v)+'_'+Date.now());
+      return;
+    }
+    if(!old)sessionStorage.setItem(VERSION_KEY,v);
+  }
+  setTimeout(checkForUpdate,5000);
+  setInterval(checkForUpdate,UPDATE_CHECK_MS);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkForUpdate();});
+})();
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
