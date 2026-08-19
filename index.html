@@ -1,41 +1,6 @@
 <!doctype html>
 <html lang="en">
 <head>
-<!-- FLEET-OPS-AUTO-UPDATE -->
-<script>
-(function(){
-  'use strict';
-  const UPDATE_CHECK_MS=60000;
-  const PAGE_URL=location.href.split('#')[0].split('?')[0];
-  const VERSION_KEY='fleetOpsHtmlVersion';
-  async function getVersion(url){
-    try{
-      const res=await fetch(url+'?_fleetops_check='+Date.now(),{cache:'no-store',headers:{'Cache-Control':'no-cache'}});
-      if(!res.ok)return null;
-      const html=await res.text();
-      if(window.crypto&&crypto.subtle){
-        const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(html));
-        return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
-      }
-      let h=0; for(let i=0;i<html.length;i++)h=((h<<5)-h)+html.charCodeAt(i)|0; return String(h);
-    }catch(e){return null;}
-  }
-  async function checkForUpdate(){
-    const v=await getVersion(PAGE_URL); if(!v)return;
-    const old=sessionStorage.getItem(VERSION_KEY);
-    if(old&&old!==v){
-      sessionStorage.setItem(VERSION_KEY,v);
-      location.replace(PAGE_URL+'?_fleetops_reload='+encodeURIComponent(v)+'_'+Date.now());
-      return;
-    }
-    if(!old)sessionStorage.setItem(VERSION_KEY,v);
-  }
-  setTimeout(checkForUpdate,5000);
-  setInterval(checkForUpdate,UPDATE_CHECK_MS);
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkForUpdate();});
-})();
-</script>
-
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -521,9 +486,10 @@ window.OASIS_SUPABASE_KEY = 'sb_publishable_M0qW4HCL79wLqHIgUQlJ-g_-0BNztgq';
 <div class="grid3">
 <div><label>Vehicle</label>
   <div class="vehicle-picker" id="dVehiclePicker">
-    <input id="dVehicleSearch" placeholder="Search or select vehicle..." autocomplete="off"
+    <input id="dVehicleSearch" placeholder="Search vehicles..." autocomplete="off"
            onfocus="openVehiclePicker('dVehicle')" oninput="renderVehiclePicker('dVehicle')">
     <input type="hidden" id="dVehicle">
+    <div id="dVehicleSelectedCount" style="font-size:12px;color:#64748b;margin:6px 0 4px">0 vehicles selected</div>
     <div class="vehicle-picker-list" id="dVehicleList"></div>
   </div>
 </div>
@@ -1375,15 +1341,11 @@ function openVehiclePicker(id){
  renderVehiclePicker(id);
 }
 function selectVehicle(id,vehicleId){
- let v=(db.vehicles||[]).find(x=>x.id===vehicleId);
- let t=(db.trailers||[]).find(x=>x.id===vehicleId);
- if(!v&&!t)return;
- const value=v?v.id:t.id;
- const label=v?vehicleNumber(v):(t.no||t.reg||'Trailer');
- const hidden=document.getElementById(id), search=document.getElementById(id+'Search'), picker=document.getElementById(id+'Picker');
- if(hidden)hidden.value=value;
- if(search)search.value=label;
- if(picker)picker.classList.remove('open');
+ let v=db.vehicles.find(x=>x.id===vehicleId);
+ if(!v)return;
+ document.getElementById(id).value=v.id;
+ document.getElementById(id+'Search').value=vehicleNumber(v);
+ document.getElementById(id+'Picker').classList.remove('open');
  if(id==='rVehicle')renderReport();
 }
 function renderVehiclePicker(id){
@@ -1575,35 +1537,74 @@ function renderBreakdowns(){
   let rows=db.breakdowns.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
   breakdownTable.innerHTML=rows.length?`<table><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Severity</th><th>Status</th><th>Location</th><th>Repair Cost</th><th>Actions</th></tr>${rows.map(x=>`<tr><td>${esc(x.date||'')}${x.time?' '+esc(x.time):''}</td><td><b>${esc(vname(x.vehicleId))}</b></td><td>${esc(x.type||'')}</td><td>${esc(x.severity||'')}</td><td><span class="badge ${x.status==='Completed'?'done':'open'}">${esc(x.status||'')}</span></td><td>${esc(x.location||'-')}</td><td>${money(x.cost)}</td><td><button class="primary edit-action" type="button" onclick="editBreakdown('${x.id}')">Edit</button> <button class="danger" type="button" onclick="deleteBreakdown('${x.id}')">Delete</button></td></tr>`).join('')}</table>`:'<div class="empty">No breakdown records found.</div>';
 }
-function addDocument(){
-  const vehicleEl=document.getElementById('dVehicle');
-  const typeEl=document.getElementById('dType');
-  const issueEl=document.getElementById('dIssueDate');
-  const expiryEl=document.getElementById('dExpiryDate');
-  const reminderEl=document.getElementById('dReminderDays');
-  const refEl=document.getElementById('dRef');
-  const notesEl=document.getElementById('dNotes');
-  if(!vehicleEl?.value)return alert('Select a vehicle.');
-  if(!issueEl?.value || !expiryEl?.value)return alert('Enter both issue and expiry dates.');
-  if(expiryEl.value<issueEl.value)return alert('Expiry date cannot be before issue date.');
+function saveDocument(){
+  const type=document.getElementById('dType')?.value||'';
+  const issueDate=document.getElementById('dIssueDate')?.value||'';
+  const expiryDate=document.getElementById('dExpiryDate')?.value||'';
+  const reminderDays=Number(document.getElementById('dReminder')?.value||15);
+  const ref=(document.getElementById('dRef')?.value||'').trim();
+  const notes=(document.getElementById('dNotes')?.value||'').trim();
+
+  const picker=document.getElementById('dVehicle');
+  let selectedIds=[];
+  if(picker){
+    selectedIds=Array.from(picker.selectedOptions||[])
+      .map(o=>o.value)
+      .filter(Boolean);
+  }
+
+  // Support the existing single-select/search UI if present.
+  if(!selectedIds.length){
+    const single=document.getElementById('dVehicleSearch')?.dataset?.vehicleId ||
+      document.getElementById('dVehicle')?.value || '';
+    if(single) selectedIds=[single];
+  }
+
+  if(!selectedIds.length){
+    alert('Select at least one vehicle.');
+    return;
+  }
+  if(!type){
+    alert('Select a compliance type.');
+    return;
+  }
+  if(!expiryDate){
+    alert('Enter the expiry / due date.');
+    return;
+  }
+
   db.documents=Array.isArray(db.documents)?db.documents:[];
-  db.documents.push({
-    id:crypto.randomUUID(),
-    vehicleId:vehicleEl.value,
-    type:typeEl?.value||'',
-    issueDate:issueEl.value,
-    expiryDate:expiryEl.value,
-    reminderDays:Math.max(0,Number(reminderEl?.value||0)),
-    ref:(refEl?.value||'').trim(),
-    notes:(notesEl?.value||'').trim()
+
+  // One independent record is created for every selected vehicle.
+  // This keeps reminders, editing and reporting vehicle-specific.
+  selectedIds.forEach(vehicleId=>{
+    const candidate={
+      id:crypto.randomUUID(),
+      vehicleId,
+      type,
+      issueDate,
+      expiryDate,
+      reminderDays,
+      ref,
+      notes
+    };
+    db.documents.push(candidate);
   });
-  ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  if(reminderEl)reminderEl.value=15;
-  if(vehicleEl)vehicleEl.value='';
-  const searchEl=document.getElementById('dVehicleSearch'); if(searchEl)searchEl.value='';
+
   persistDb();
-  renderDocuments();
-  notifyReminders();
+  if(typeof renderDocuments==='function') renderDocuments();
+  if(typeof renderDashboard==='function') renderDashboard();
+
+  // Reset only the vehicle selection and common fields after a successful batch save.
+  if(picker) Array.from(picker.options).forEach(o=>o.selected=false);
+  const search=document.getElementById('dVehicleSearch');
+  if(search) {
+    search.value='';
+    if(search.dataset) delete search.dataset.vehicleId;
+  }
+  ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
 }
 function deleteDocument(id){
   if(confirm('Delete this compliance record?')){db.documents=db.documents.filter(x=>x.id!==id);save();notifyReminders();}
@@ -1621,13 +1622,13 @@ function editDocument(id){
  </div><div style="margin-top:14px"><label>Notes</label><textarea id="ueDocNotes">${esc(x.notes||'')}</textarea></div>`);
 }
 function saveDocumentEdit(id){
- const x=(db.documents||[]).find(d=>d.id===id);if(!x)return; const issue=document.getElementById('ueDocIssue').value,expiry=document.getElementById('ueDocExpiry').value;if(!issue||!expiry)return alert('Enter both issue and expiry dates.');if(expiry<issue)return alert('Expiry date cannot be before issue date.');
+ const x=(db.documents||[]).find(d=>d.id===id);if(!x)return; const issue=document.getElementById('ueDocIssue').value,expiry=document.getElementById('ueDocExpiry').value;if(expiry<issue)return alert('Expiry date cannot be before issue date.');
  x.vehicleId=document.getElementById('ueDocVehicle').value;x.type=document.getElementById('ueDocType').value.trim();x.issueDate=issue;x.expiryDate=expiry;x.reminderDays=Math.max(0,Number(document.getElementById('ueDocReminder').value||0));x.ref=document.getElementById('ueDocRef').value.trim();x.notes=document.getElementById('ueDocNotes').value.trim();closeUnifiedEdit();save();renderDocuments();notifyReminders();
 }
 
 function renderDocuments(){
   let q=(documentSearch?.value||'').toLowerCase();
-  let rows=(db.documents||[]).slice().sort((a,b)=>String(a.expiryDate||'').localeCompare(String(b.expiryDate||'')) )
+  let rows=db.documents.slice().sort((a,b)=>a.expiryDate.localeCompare(b.expiryDate))
     .filter(x=>JSON.stringify({...x,vehicle:vname(x.vehicleId)}).toLowerCase().includes(q));
   documentTable.innerHTML=rows.length?`<table>
   <tr><th>Vehicle</th><th>Type</th><th>Issue Date</th><th>Expiry Date</th><th>Reminder</th><th>Reference</th><th></th></tr>
@@ -2037,7 +2038,8 @@ function vname(id,ref){let v=db.vehicles.find(v=>v.id===id);if(v)return vehicleN
 function renderRecent(){let r=db.jobs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);recentJobs.innerHTML=r.length?`<table><tr><th>Date</th><th>Job</th><th>Vehicle</th><th>Status</th><th>Cost</th></tr>${r.map(j=>`<tr><td>${esc(j.date)}</td><td>${esc(j.no)}</td><td>${esc(vname(j.vehicleId))}</td><td>${esc(j.status)}</td><td>${esc(j.dateFinished||'')}</td><td>${esc(j.daysTaken??'')}</td><td>${money(j.cost)}</td></tr>`).join('')}</table>`:'<div class="empty">No job cards yet.</div>'}
 function renderReportLegacy(){
  const reportType=document.getElementById('rReportType')?.value||'service-one';
- const from=rFrom.value,to=rTo.value;
+ const from=document.getElementById('rFrom')?.value||'',to=document.getElementById('rTo')?.value||'';
+ const inRange=d=>(!from||!d||String(d)>=from)&&(!to||!d||String(d)<=to);
  const dedupedServices=()=>{
    const seen=new Set(), out=[];
    for(const svc of (db.services||[])){
@@ -2082,7 +2084,13 @@ function renderReportLegacy(){
  if(reportType==='vehicle-one'){
    if(!rVehicle.value){reportOutput.innerHTML='<div class="panel"><div class="empty">Select a vehicle to generate its complete report.</div></div>';return;}
    const v=db.vehicles.find(x=>x.id===rVehicle.value); if(!v){reportOutput.innerHTML='<div class="panel"><div class="empty">Vehicle not found.</div></div>';return;}
-   const ss=dedupedServices().filter(x=>x.vehicleId===v.id&&inRange(x.date)), bs=(db.breakdowns||[]).filter(x=>x.vehicleId===v.id&&inRange(x.date)), js=(db.jobs||[]).filter(x=>x.vehicleId===v.id&&inRange(x.date)), es=(db.expenses||[]).filter(x=>x.vehicleId===v.id&&inRange(x.date)), ds=(db.documents||[]).filter(x=>x.vehicleId===v.id);
+   const selectedRefs=new Set([String(v.id||''),String(v.no||''),String(v.reg||''),String(v.vehicleNumber||''),String(v.vehicle_number||''),String(v.registration||'')].map(s=>s.trim().toUpperCase()).filter(Boolean));
+    const belongsToSelectedVehicle=x=>{if(!x)return false; const ids=[x.vehicleId,x.vehicle_id,x.vehicleRef,x.vehicle_ref,x.vehicleNumber,x.vehicle_number,x.registration,x.reg,x.no].map(s=>String(s||'').trim().toUpperCase()).filter(Boolean); return ids.some(s=>selectedRefs.has(s));};
+    const ss=dedupedServices().filter(x=>belongsToSelectedVehicle(x)&&inRange(x.date));
+    const bs=(db.breakdowns||[]).filter(x=>belongsToSelectedVehicle(x)&&inRange(x.date));
+    const js=(db.jobs||[]).filter(x=>belongsToSelectedVehicle(x)&&inRange(x.date));
+    const es=(db.expenses||[]).filter(x=>belongsToSelectedVehicle(x)&&inRange(x.date));
+    const ds=(db.documents||[]).filter(x=>belongsToSelectedVehicle(x));
    const d=(db.drivers||[]).find(x=>x.vehicleId===v.id), pair=(db.pairs||[]).find(x=>x.horseId===v.id), tr=pair?(db.trailers||[]).find(x=>x.id===pair.trailerId):null;
    const table=(heads,rows,empty)=>rows.length?`<div style="overflow:auto"><table><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr>${rows.join('')}</table></div>`:`<p>${empty}</p>`;
    const jc=js.reduce((a,x)=>a+Number(x.cost||0),0), ec=es.reduce((a,x)=>a+Number(x.amount||0),0);
@@ -3109,5 +3117,174 @@ function saveDriverModal(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)r
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(renderReportsSafely,0);});
 })();
 </script>
+<!-- COMPLETE-VEHICLE-REPORT-REFRESH-FIX -->
+<script>
+(function(){
+ function refresh(){try{if(document.getElementById('rReportType')?.value==='vehicle-one'&&typeof renderReport==='function')renderReport();}catch(e){console.error(e)}}
+ window.addEventListener('load',()=>setTimeout(refresh,50));
+ document.addEventListener('change',e=>{if(e.target&&(e.target.id==='rReportType'||e.target.id==='rVehicle'))setTimeout(refresh,0)});
+})();
+</script>
+
+<!-- COMPLIANCE-MULTI-VEHICLE-SELECT -->
+<script>
+(function(){
+  function enhanceComplianceVehiclePicker(){
+    const sel=document.getElementById('dVehicle');
+    if(!sel || sel.dataset.multiEnhanced==='1') return;
+    sel.dataset.multiEnhanced='1';
+
+    sel.multiple=true;
+    sel.size=Math.min(8, Math.max(4, sel.options.length));
+
+    // Keep the existing select's visual style while making multiple selection clear.
+    sel.title='Hold Ctrl (Windows) or Command (Mac) to select multiple vehicles';
+
+    const controls=document.createElement('div');
+    controls.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:8px';
+
+    const all=document.createElement('button');
+    all.type='button';
+    all.className='secondary';
+    all.textContent='Select All Vehicles';
+    all.onclick=function(){
+      Array.from(sel.options).forEach(o=>{ if(o.value) o.selected=true; });
+      sel.dispatchEvent(new Event('change',{bubbles:true}));
+    };
+
+    const clear=document.createElement('button');
+    clear.type='button';
+    clear.className='secondary';
+    clear.textContent='Clear Selection';
+    clear.onclick=function(){
+      Array.from(sel.options).forEach(o=>o.selected=false);
+      sel.dispatchEvent(new Event('change',{bubbles:true}));
+    };
+
+    controls.appendChild(all);
+    controls.appendChild(clear);
+    sel.parentNode.insertBefore(controls,sel.nextSibling);
+  }
+
+  window.addEventListener('load',enhanceComplianceVehiclePicker);
+  document.addEventListener('DOMContentLoaded',enhanceComplianceVehiclePicker);
+
+  // If the software re-renders the compliance form, enhance it again.
+  const observer=new MutationObserver(enhanceComplianceVehiclePicker);
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
+
+
+<script id="targeted-report-and-compliance-fix">
+(function(){
+  const originalRenderVehiclePicker = window.renderVehiclePicker;
+
+  window.renderVehiclePicker = function(id){
+    if(id !== 'dVehicle') return originalRenderVehiclePicker ? originalRenderVehiclePicker(id) : undefined;
+    const search=document.getElementById('dVehicleSearch');
+    const list=document.getElementById('dVehicleList');
+    const hidden=document.getElementById('dVehicle');
+    const countEl=document.getElementById('dVehicleSelectedCount');
+    if(!search || !list || !hidden) return;
+
+    const selectedIds=new Set(String(hidden.value||'').split(',').map(x=>x.trim()).filter(Boolean));
+    const q=(search.value||'').toLowerCase().trim();
+    const rows=(db.vehicles||[]).filter(v=>(v.no+' '+v.reg+' '+v.type).toLowerCase().includes(q));
+
+    if(countEl) countEl.textContent=`${selectedIds.size} vehicle${selectedIds.size===1?'':'s'} selected`;
+    list.innerHTML=rows.length ? rows.map(v=>{
+      const checked=selectedIds.has(String(v.id));
+      return `<label class="vehicle-picker-option ${checked?'selected':''}" style="display:flex;align-items:center;gap:9px;cursor:pointer;text-align:left;">
+        <input type="checkbox" ${checked?'checked':''} onchange="selectVehicle('dVehicle','${v.id}')" style="width:16px;height:16px;flex:0 0 auto;">
+        <span>${esc(v.no||v.reg||'Vehicle')}${v.reg?' — '+esc(v.reg):''}${v.type?' · '+esc(v.type):''}</span>
+      </label>`;
+    }).join('') : '<div class="vehicle-picker-empty">No matching vehicles found.</div>';
+  };
+
+  window.openVehiclePicker = function(id){
+    const picker=document.getElementById(id+'Picker');
+    if(picker) picker.classList.add('open');
+    window.renderVehiclePicker(id);
+  };
+
+  window.selectVehicle = function(id,vehicleId){
+    if(id !== 'dVehicle'){
+      const v=(db.vehicles||[]).find(x=>x.id===vehicleId);
+      if(!v)return;
+      const hidden=document.getElementById(id), search=document.getElementById(id+'Search');
+      if(hidden) hidden.value=v.id;
+      if(search) search.value=vehicleNumber(v);
+      const picker=document.getElementById(id+'Picker');
+      if(picker) picker.classList.remove('open');
+      if(id==='rVehicle' && typeof renderReport==='function') renderReport();
+      return;
+    }
+
+    const hidden=document.getElementById('dVehicle');
+    if(!hidden)return;
+    const ids=new Set(String(hidden.value||'').split(',').map(x=>x.trim()).filter(Boolean));
+    const key=String(vehicleId);
+    if(ids.has(key)) ids.delete(key); else ids.add(key);
+    hidden.value=Array.from(ids).join(',');
+
+    const search=document.getElementById('dVehicleSearch');
+    if(search) search.value='';
+    window.renderVehiclePicker('dVehicle');
+  };
+
+  window.saveDocument = function(){
+    const type=document.getElementById('dType')?.value||'';
+    const issueDate=document.getElementById('dIssueDate')?.value||'';
+    const expiryDate=document.getElementById('dExpiryDate')?.value||'';
+    const reminderDays=Number(document.getElementById('dReminderDays')?.value||15);
+    const ref=(document.getElementById('dRef')?.value||'').trim();
+    const notes=(document.getElementById('dNotes')?.value||'').trim();
+    const selectedIds=String(document.getElementById('dVehicle')?.value||'').split(',').map(x=>x.trim()).filter(Boolean);
+
+    if(!selectedIds.length){alert('Select at least one vehicle.');return;}
+    if(!type){alert('Select a compliance type.');return;}
+    if(!expiryDate){alert('Enter the expiry / due date.');return;}
+
+    db.documents=Array.isArray(db.documents)?db.documents:[];
+    selectedIds.forEach(vehicleId=>db.documents.push({id:crypto.randomUUID(),vehicleId,type,issueDate,expiryDate,reminderDays,ref,notes}));
+    persistDb();
+    if(typeof renderDocuments==='function') renderDocuments();
+    if(typeof renderDashboard==='function') renderDashboard();
+
+    const hidden=document.getElementById('dVehicle'); if(hidden) hidden.value='';
+    const search=document.getElementById('dVehicleSearch'); if(search) search.value='';
+    ['dIssueDate','dExpiryDate','dRef','dNotes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    window.renderVehiclePicker('dVehicle');
+  };
+
+  // Keep report rendering errors from being hidden behind a generic message.
+  const originalRenderReport=window.renderReport;
+  window.renderReport=function(){
+    try{
+      if(originalRenderReport) originalRenderReport();
+      const out=document.getElementById('reportOutput');
+      if(out) out.style.display='block';
+    }catch(err){
+      console.error('Report render failed:',err);
+      const out=document.getElementById('reportOutput');
+      if(out){out.style.display='block';out.innerHTML='<div class="panel"><div class="empty">The report could not be rendered. Please try again.</div></div>';}
+    }
+  };
+
+  const originalPrintReport=window.printReport;
+  window.printReport=function(){
+    try{
+      if(typeof window.renderReport==='function') window.renderReport();
+      const reports=document.getElementById('reports');
+      if(reports) reports.classList.add('printing');
+      setTimeout(()=>{window.print();setTimeout(()=>{if(reports)reports.classList.remove('printing');},500);},50);
+    }catch(err){console.error('Print report failed:',err);if(originalPrintReport)originalPrintReport();}
+  };
+
+  window.addEventListener('load',()=>setTimeout(()=>window.renderVehiclePicker('dVehicle'),100));
+})();
+</script>
+
 </body>
 </html>
