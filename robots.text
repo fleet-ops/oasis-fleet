@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://fleet-ops.github.io/oasis-fleet/sitemap.xml
