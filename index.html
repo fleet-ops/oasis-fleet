@@ -1149,8 +1149,13 @@ function seedRoadTax2027(){
 db.trailers=Array.isArray(db.trailers)?db.trailers:[];
 // Seed the trailer master BEFORE importing compliance records so trailer
 // registrations such as ARB - 1977 and ALC-445 can never be created as vehicles.
+db.deletedTrailers=Array.isArray(db.deletedTrailers)?db.deletedTrailers:[];
+const deletedTrailerKeys=new Set(db.deletedTrailers.map(x=>String(x).trim().toLowerCase()));
 COMPANY_TRAILERS.forEach(t=>{
-  const existing=db.trailers.find(x=>String(x.no||'').trim().toLowerCase()===t.no.toLowerCase());
+  const masterNo=String(t.no||'').trim().toLowerCase();
+  const masterReg=String(t.reg||'').trim().toLowerCase();
+  if(deletedTrailerKeys.has(masterNo)||(masterReg && deletedTrailerKeys.has(masterReg)))return;
+  const existing=db.trailers.find(x=>String(x.no||'').trim().toLowerCase()===masterNo || (masterReg && String(x.reg||'').trim().toLowerCase()===masterReg));
   if(existing){
     existing.type='Tanker';
     if(!existing.description) existing.description=t.description;
@@ -1213,8 +1218,13 @@ COMPANY_SMALL_VEHICLES.forEach(v=>{
 
 function syncMasterTrailersAndPairs(){
   db.trailers=Array.isArray(db.trailers)?db.trailers:[];
+  db.deletedTrailers=Array.isArray(db.deletedTrailers)?db.deletedTrailers:[];
+  const deletedTrailerKeys=new Set(db.deletedTrailers.map(x=>String(x).trim().toLowerCase()));
   (COMPANY_TRAILERS||[]).forEach(t=>{
-    let existing=db.trailers.find(x=>String(x.no||'').trim().toLowerCase()===String(t.no||'').trim().toLowerCase() || (t.reg && String(x.reg||'').trim().toLowerCase()===String(t.reg||'').trim().toLowerCase()));
+    const masterNo=String(t.no||'').trim().toLowerCase();
+    const masterReg=String(t.reg||'').trim().toLowerCase();
+    if(deletedTrailerKeys.has(masterNo)||(masterReg && deletedTrailerKeys.has(masterReg)))return;
+    let existing=db.trailers.find(x=>String(x.no||'').trim().toLowerCase()===masterNo || (masterReg && String(x.reg||'').trim().toLowerCase()===masterReg));
     if(!existing){
       db.trailers.push({id:crypto.randomUUID(),no:t.no,reg:t.reg,type:t.type,description:t.description||''});
     }else{
@@ -2747,9 +2757,17 @@ db.pairs=db.pairs||[];
   showFleetTab('trailers');
 }
 function deleteTrailer(id){
+  const trailer=(db.trailers||[]).find(x=>x.id===id);
+  if(!trailer)return;
   if(confirm('Delete this trailer?')){
+    // Remember deleted master trailers so the automatic fleet sync does not recreate them.
+    db.deletedTrailers=Array.isArray(db.deletedTrailers)?db.deletedTrailers:[];
+    const keys=[String(trailer.no||'').trim().toLowerCase(),String(trailer.reg||'').trim().toLowerCase()].filter(Boolean);
+    keys.forEach(key=>{if(!db.deletedTrailers.includes(key))db.deletedTrailers.push(key);});
     db.trailers=(db.trailers||[]).filter(x=>x.id!==id);
-    save(); renderTrailers();
+    // Remove only the pairing; keep all other trailer/vehicle history untouched.
+    db.pairs=(db.pairs||[]).filter(p=>p.trailerId!==id);
+    save(); renderTrailers(); renderVehicles();
   }
 }
 function renderTrailers(){
@@ -3300,9 +3318,12 @@ function saveDriverModal(id){const d=(db.drivers||[]).find(x=>x.id===id);if(!d)r
       if(typeof ensureDbShape==='function') ensureDbShape();
       db.trailers=Array.isArray(db.trailers)?db.trailers:[];
       const masters=Array.isArray(COMPANY_TRAILERS)?COMPANY_TRAILERS:[];
+      db.deletedTrailers=Array.isArray(db.deletedTrailers)?db.deletedTrailers:[];
+      const deletedTrailerKeys=new Set(db.deletedTrailers.map(x=>String(x).trim().toLowerCase()));
       masters.forEach(t=>{
         const no=String(t.no||'').trim().toLowerCase();
         const reg=String(t.reg||'').trim().toLowerCase();
+        if(deletedTrailerKeys.has(no)||(reg && deletedTrailerKeys.has(reg)))return;
         let existing=db.trailers.find(x=>
           String(x.no||'').trim().toLowerCase()===no ||
           (reg && String(x.reg||'').trim().toLowerCase()===reg)
